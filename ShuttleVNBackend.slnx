@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ShuttleVNBackend.Api/ShuttleVNBackend.Api.csproj" />
+  <Project Path="ShuttleVNBackend.Application/ShuttleVNBackend.Application.csproj" />
+  <Project Path="ShuttleVNBackend.Core/ShuttleVNBackend.Core.csproj" />
+  <Project Path="ShuttleVNBackend.Infrastructure/ShuttleVNBackend.Infrastructure.csproj" />
+</Solution>
