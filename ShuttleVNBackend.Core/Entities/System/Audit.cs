@@ -3,7 +3,7 @@
 public class Audit
 {
     public Guid Id { get; set; }
-    public Guid AccountId { get; set; }
+    public Guid? AccountId { get; set; }
     public string Action { get; set; } = null!;
     public string EntityName { get; set; } = null!;
     public string EntityId { get; set; } = null!;
