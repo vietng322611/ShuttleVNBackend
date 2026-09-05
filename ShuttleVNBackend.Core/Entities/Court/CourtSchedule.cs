@@ -8,5 +8,6 @@ public class CourtSchedule
     public TimeOnly OpenTime { get; set; }
     public TimeOnly CloseTime { get; set; }
     public bool IsAvailable { get; set; }
+    public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

@@ -8,5 +8,6 @@ public class PricingRule
     public TimeOnly StartTime { get; set; }
     public TimeOnly EndTime { get; set; }
     public decimal PricePerHour { get; set; }
+    public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

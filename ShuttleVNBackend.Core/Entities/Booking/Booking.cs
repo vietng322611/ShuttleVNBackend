@@ -8,7 +8,7 @@ public class Booking
     public string BookingCode { get; set; } = null!;
     public Guid CustomerId { get; set; }
     public int CourtId { get; set; }
-    public DateTime Date { get; set; }
+    public DateOnly Date { get; set; }
     public TimeOnly StartTime { get; set; }
     public TimeOnly EndTime { get; set; }
     public BookingStatus Status { get; set; }

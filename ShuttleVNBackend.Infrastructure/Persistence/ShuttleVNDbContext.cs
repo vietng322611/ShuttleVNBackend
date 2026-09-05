@@ -1,6 +1,151 @@
-﻿namespace ShuttleVNBackend.Infrastructure.Persistence;
+﻿using Microsoft.EntityFrameworkCore;
+using ShuttleVNBackend.Core.Entities.Booking;
+using ShuttleVNBackend.Core.Entities.Court;
+using ShuttleVNBackend.Core.Entities.System;
+using ShuttleVNBackend.Core.Entities.User;
 
-public class ShuttleVNDbContext
+namespace ShuttleVNBackend.Infrastructure.Persistence;
+
+public class ShuttleVNDbContext : DbContext
 {
-    
+    public ShuttleVNDbContext(DbContextOptions<ShuttleVNDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Court> Courts => Set<Court>();
+    public DbSet<CourtSchedule> CourtSchedules => Set<CourtSchedule>();
+    public DbSet<PricingRule> PricingRules => Set<PricingRule>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingStatusHistory> BookingStatusHistories => Set<BookingStatusHistory>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<Audit> Audits => Set<Audit>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // 1. Tài khoản và người dùng
+        modelBuilder.Entity<UserAccount>(entity =>
+        {
+            entity.HasKey(e => e.AccountId);
+            entity.Property(e => e.Username).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.Username).IsUnique();
+            entity.Property(e => e.AccountType).HasConversion<string>();
+            entity.Property(e => e.Status).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.HasKey(e => e.EmployeeId);
+            entity.HasIndex(e => e.AccountId).IsUnique();
+            entity.HasOne<UserAccount>()
+                .WithOne()
+                .HasForeignKey<Employee>(e => e.AccountId)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.HasKey(e => e.CustomerId);
+            entity.HasIndex(e => e.AccountId).IsUnique();
+            entity.HasOne<UserAccount>()
+                .WithOne()
+                .HasForeignKey<Customer>(e => e.AccountId)
+                .IsRequired(false);
+        });
+
+        // 2. Quản lý sân
+        modelBuilder.Entity<Court>(entity =>
+        {
+            entity.HasKey(e => e.CourtId);
+            entity.Property(e => e.Status).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<CourtSchedule>(entity =>
+        {
+            entity.HasKey(e => e.ScheduleId);
+            entity.HasIndex(e => new { e.CourtId, e.DayOfWeek, e.OpenTime }).IsUnique();
+            entity.HasOne<Court>()
+                .WithMany()
+                .HasForeignKey(e => e.CourtId);
+        });
+
+        modelBuilder.Entity<PricingRule>(entity =>
+        {
+            entity.HasKey(e => e.PricingRuleId);
+            entity.HasIndex(e => new { e.CourtId, e.DayOfWeek, e.StartTime }).IsUnique();
+            entity.Property(e => e.PricePerHour).HasPrecision(10, 2);
+            entity.HasOne<Court>()
+                .WithMany()
+                .HasForeignKey(e => e.CourtId);
+        });
+
+        // 3. Đặt sân
+        modelBuilder.Entity<Booking>(entity =>
+        {
+            entity.HasKey(e => e.BookingId);
+            entity.HasIndex(e => e.BookingCode).IsUnique();
+            entity.Property(e => e.TotalCost).HasPrecision(10, 2);
+            entity.Property(e => e.Status).HasConversion<string>();
+
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(e => e.CustomerId);
+
+            entity.HasOne<Court>()
+                .WithMany()
+                .HasForeignKey(e => e.CourtId);
+        });
+
+        modelBuilder.Entity<BookingStatusHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OldStatus).HasConversion<string>();
+            entity.Property(e => e.NewStatus).HasConversion<string>();
+
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(e => e.BookingId);
+
+            entity.HasOne<Employee>()
+                .WithMany()
+                .HasForeignKey(e => e.ChangedBy)
+                .IsRequired(false);
+        });
+
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.HasKey(e => e.InvoiceId);
+            entity.HasIndex(e => e.InvoiceCode).IsUnique();
+            entity.Property(e => e.TotalCost).HasPrecision(10, 2);
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.Property(e => e.PaymentMethod).HasConversion<string>();
+
+            entity.HasOne<Booking>()
+                .WithMany()
+                .HasForeignKey(e => e.BookingId);
+
+            entity.HasOne<Employee>()
+                .WithMany()
+                .HasForeignKey(e => e.IssuedBy);
+
+            // BR-13: tối đa 1 hóa đơn UNPAID / booking
+            entity.HasIndex(e => e.BookingId)
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Unpaid'");
+        });
+
+        // 4. Hệ thống
+        modelBuilder.Entity<Audit>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne<UserAccount>()
+                .WithMany()
+                .HasForeignKey(e => e.AccountId)
+                .IsRequired(false);
+        });
+    }
 }

@@ -6,7 +6,7 @@ public class BookingStatusHistory
 {
     public Guid Id { get; set; }
     public Guid BookingId { get; set; }
-    public BookingStatus OldStatus { get; set; }
+    public BookingStatus? OldStatus { get; set; }
     public BookingStatus NewStatus { get; set; }
     public Guid? ChangedBy { get; set; }
     public DateTime ChangedAt { get; set; }

@@ -11,7 +11,7 @@ public class Invoice
     public InvoiceStatus Status { get; set; }
     public Guid IssuedBy { get; set; }
     public DateTime IssuedAt { get; set; }
-    public DateTime PaidAt { get; set; }
-    public PaymentMethod PaymentMethod { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public PaymentMethod? PaymentMethod { get; set; }
     public string Note { get; set; } = string.Empty;
 }
