@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using EFCore.ComplexIndexes.PostgreSQL;
+using Microsoft.EntityFrameworkCore;
 using ShuttleVNBackend.Core.Entities.Booking;
 using ShuttleVNBackend.Core.Entities.Court;
 using ShuttleVNBackend.Core.Entities.System;
@@ -6,9 +7,9 @@ using ShuttleVNBackend.Core.Entities.User;
 
 namespace ShuttleVNBackend.Infrastructure.Persistence;
 
-public class ShuttleVNDbContext : DbContext
+public class ShuttleVnDbContext : DbContext
 {
-    public ShuttleVNDbContext(DbContextOptions<ShuttleVNDbContext> options) : base(options)
+    public ShuttleVnDbContext(DbContextOptions<ShuttleVnDbContext> options) : base(options)
     {
     }
 
@@ -27,7 +28,6 @@ public class ShuttleVNDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // 1. Tài khoản và người dùng
         modelBuilder.Entity<UserAccount>(entity =>
         {
             entity.HasKey(e => e.AccountId);
@@ -57,7 +57,6 @@ public class ShuttleVNDbContext : DbContext
                 .IsRequired(false);
         });
 
-        // 2. Quản lý sân
         modelBuilder.Entity<Court>(entity =>
         {
             entity.HasKey(e => e.CourtId);
@@ -71,6 +70,12 @@ public class ShuttleVNDbContext : DbContext
             entity.HasOne<Court>()
                 .WithMany()
                 .HasForeignKey(e => e.CourtId);
+            
+            entity.HasExclusionConstraint(ex => ex
+                .WithEquality(e => e.CourtId)
+                .WithEquality(e => e.DayOfWeek)
+                .WithExpression("tsrange(DATE '2000-01-01' + \"OpenTime\", DATE '2000-01-01' + \"CloseTime\")", "&&")
+                .HasName("ex_court_schedules_no_overlap"));
         });
 
         modelBuilder.Entity<PricingRule>(entity =>
@@ -81,9 +86,14 @@ public class ShuttleVNDbContext : DbContext
             entity.HasOne<Court>()
                 .WithMany()
                 .HasForeignKey(e => e.CourtId);
+            
+            entity.HasExclusionConstraint(ex => ex
+                .WithEquality(e => e.CourtId)
+                .WithEquality(e => e.DayOfWeek)
+                .WithExpression("tsrange(DATE '2000-01-01' + \"StartTime\", DATE '2000-01-01' + \"EndTime\")", "&&")
+                .HasName("ex_pricing_rules_no_overlap"));
         });
 
-        // 3. Đặt sân
         modelBuilder.Entity<Booking>(entity =>
         {
             entity.HasKey(e => e.BookingId);
@@ -98,6 +108,14 @@ public class ShuttleVNDbContext : DbContext
             entity.HasOne<Court>()
                 .WithMany()
                 .HasForeignKey(e => e.CourtId);
+            
+            // BR-08
+            entity.HasExclusionConstraint(ex => ex
+                .WithEquality(e => e.CourtId)
+                .WithEquality(e => e.Date)
+                .WithExpression("tsrange(\"Date\" + \"StartTime\", \"Date\" + \"EndTime\")", "&&")
+                .HasFilter("\"Status\" <> 'Cancelled'")
+                .HasName("ex_bookings_no_overlap"));
         });
 
         modelBuilder.Entity<BookingStatusHistory>(entity =>
@@ -132,13 +150,12 @@ public class ShuttleVNDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.IssuedBy);
 
-            // BR-13: tối đa 1 hóa đơn UNPAID / booking
+            // BR-13
             entity.HasIndex(e => e.BookingId)
                 .IsUnique()
                 .HasFilter("\"Status\" = 'Unpaid'");
         });
 
-        // 4. Hệ thống
         modelBuilder.Entity<Audit>(entity =>
         {
             entity.HasKey(e => e.Id);
