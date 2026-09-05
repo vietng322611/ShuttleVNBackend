@@ -253,9 +253,9 @@ CREATE UNIQUE INDEX ON Invoice (bookingId) WHERE status = 'UNPAID'
 ## 4. Hệ thống
 
 ### Business Rules
-- **BR-15**: Mọi hành động thêm, sửa, xóa (CRUD) trên các bảng quan trọng — `Court`, `CourtSchedule`, `PricingRule`, `Booking`, `Invoice` — bắt buộc phải ghi vào bảng `Audit`.
-- **BR-16**: Hành động đăng nhập thất bại quá 5 lần liên tiếp của một `UserAccount` phải bị khóa tài khoản tạm thời (cập nhật `status` trong `UserAccount`) và ghi log vào `Audit`.
-- **BR-17**: Hệ thống **không** được phép xóa vật lý (DELETE) bất kỳ bản ghi nào có liên quan đến giao dịch (`Booking`, `Invoice`, `Customer` đã từng đặt sân). Thay vào đó, sử dụng trạng thái (Status) để đánh dấu đã xóa hoặc vô hiệu.
+- **BR-16**: Mọi hành động thêm, sửa, xóa (CRUD) trên các bảng quan trọng — `Court`, `CourtSchedule`, `PricingRule`, `Booking`, `Invoice` — bắt buộc phải ghi vào bảng `Audit`.
+- **BR-17**: Hành động đăng nhập thất bại quá 5 lần liên tiếp của một `UserAccount` phải bị khóa tài khoản tạm thời (cập nhật `status` trong `UserAccount`) và ghi log vào `Audit`.
+- **BR-18**: Hệ thống **không** được phép xóa vật lý (DELETE) bất kỳ bản ghi nào có liên quan đến giao dịch (`Booking`, `Invoice`, `Customer` đã từng đặt sân). Thay vào đó, sử dụng trạng thái (Status) để đánh dấu đã xóa hoặc vô hiệu.
 
 ### Entities
 
