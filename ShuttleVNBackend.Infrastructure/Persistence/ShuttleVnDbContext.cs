@@ -1,5 +1,6 @@
 ﻿using EFCore.ComplexIndexes.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
+using ShuttleVNBackend.Application.Interfaces.Repositories;
 using ShuttleVNBackend.Core.Entities.Booking;
 using ShuttleVNBackend.Core.Entities.Court;
 using ShuttleVNBackend.Core.Entities.System;
@@ -7,7 +8,7 @@ using ShuttleVNBackend.Core.Entities.User;
 
 namespace ShuttleVNBackend.Infrastructure.Persistence;
 
-public class ShuttleVnDbContext : DbContext
+public class ShuttleVnDbContext : DbContext, IUnitOfWork
 {
     public ShuttleVnDbContext(DbContextOptions<ShuttleVnDbContext> options) : base(options)
     {
