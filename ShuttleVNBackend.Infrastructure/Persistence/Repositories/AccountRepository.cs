@@ -32,10 +32,4 @@ public class AccountRepository(ShuttleVnDbContext dbContext): IAccountRepository
                 u.LoginEmail == username)
             .FirstOrDefaultAsync(ct);
     }
-
-    public async Task<UserAccount> AddAsync(UserAccount userAccount, CancellationToken ct = default)
-    {
-        var newEntity = await dbContext.UserAccounts.AddAsync(userAccount, ct);
-        return newEntity.Entity;
-    }
 }

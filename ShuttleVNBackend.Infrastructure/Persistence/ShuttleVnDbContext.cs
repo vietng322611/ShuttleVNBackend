@@ -166,4 +166,7 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
                 .IsRequired(false);
         });
     }
+
+    public new async Task AddAsync<T>(T entity, CancellationToken ct = default) where T : class
+        => await Set<T>().AddAsync(entity, ct);
 }
