@@ -22,7 +22,7 @@
 | Field        | Type                | Ghi chú                                          |
 |--------------|---------------------|--------------------------------------------------|
 | accountId    | uuid                | PK                                               |
-| username     | string              |                                                  |
+| loginEmail   | string              | Tối ưu query đăng nhập                           |
 | passwordHash | string              |                                                  |
 | accountType  | Enum[AccountType]   | 1 tài khoản chỉ có thể là Employee hoặc Customer |
 | status       | Enum[AccountStatus] |                                                  |

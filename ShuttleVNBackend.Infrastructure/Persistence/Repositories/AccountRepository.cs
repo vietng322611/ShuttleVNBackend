@@ -24,12 +24,10 @@ public class AccountRepository(ShuttleVnDbContext dbContext): IAccountRepository
             x => x.AccountId == id, ct);
     }
 
-    public async Task<UserAccount?> GetByUsernameOrEmailAsync(string username, CancellationToken ct = default)
+    public async Task<UserAccount?> GetByEmailAsync(string email, CancellationToken ct = default)
     {
         return await dbContext.UserAccounts
-            .Where(u =>
-                u.Username == username ||
-                u.LoginEmail == username)
+            .Where(u => u.LoginEmail == email)
             .FirstOrDefaultAsync(ct);
     }
 }

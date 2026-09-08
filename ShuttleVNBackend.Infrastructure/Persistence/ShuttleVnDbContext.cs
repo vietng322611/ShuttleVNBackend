@@ -33,8 +33,7 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<UserAccount>(entity =>
         {
             entity.HasKey(e => e.AccountId);
-            entity.Property(e => e.Username).IsRequired().HasMaxLength(100);
-            entity.HasIndex(e => e.Username).IsUnique();
+            entity.HasIndex(e => e.LoginEmail).IsUnique();
             entity.Property(e => e.AccountType).HasConversion<string>();
             entity.Property(e => e.Status).HasConversion<string>();
         });
@@ -43,9 +42,12 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
         {
             entity.HasKey(e => e.EmployeeId);
             entity.HasIndex(e => e.AccountId).IsUnique();
+            entity.Property(e => e.Email).IsRequired();
+            entity.HasIndex(e => e.Email).IsUnique();
             entity.HasOne<UserAccount>()
                 .WithOne()
                 .HasForeignKey<Employee>(e => e.AccountId)
+                .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired();
         });
 
@@ -53,9 +55,12 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
         {
             entity.HasKey(e => e.CustomerId);
             entity.HasIndex(e => e.AccountId).IsUnique();
+            entity.Property(e => e.Email).IsRequired();
+            entity.HasIndex(e => e.Email).IsUnique();
             entity.HasOne<UserAccount>()
                 .WithOne()
                 .HasForeignKey<Customer>(e => e.AccountId)
+                .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
         });
 
