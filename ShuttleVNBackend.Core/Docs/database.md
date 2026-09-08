@@ -56,10 +56,10 @@
 
 ### Enums
 
-| Enum          | Values                              |
-|---------------|-------------------------------------|
-| AccountStatus | `ACTIVE`, `LOCKED`, `DISABLED`      |
-| AccountType   | `CUSTOMER`, `EMPLOYEE`              |
+| Enum          | Values                 |
+|---------------|------------------------|
+| AccountStatus | `ACTIVE`, `DISABLED`   |
+| AccountType   | `CUSTOMER`, `EMPLOYEE` |
 
 ### Entity Constraints
 

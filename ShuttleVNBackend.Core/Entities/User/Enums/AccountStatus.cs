@@ -3,6 +3,5 @@
 public enum AccountStatus
 {
     Active,
-    Locked,
     Disabled
 }
