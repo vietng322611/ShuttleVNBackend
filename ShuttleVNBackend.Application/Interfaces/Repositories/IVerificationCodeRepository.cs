@@ -5,6 +5,6 @@ namespace ShuttleVNBackend.Application.Interfaces.Repositories;
 
 public interface IVerificationCodeRepository
 {
-    Task<VerificationCode?> GetActiveAsync(Guid accountId, CodeType type, CancellationToken ct = default);
-    Task DeleteExistingAsync(Guid accountId, CodeType type);
+    Task<VerificationCode?> GetActiveAsync(string email, CodeType type, CancellationToken ct = default);
+    Task DeleteExistingAsync(string email, CodeType type);
 }

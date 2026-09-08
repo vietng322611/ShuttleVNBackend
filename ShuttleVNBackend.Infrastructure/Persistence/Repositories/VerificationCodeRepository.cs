@@ -7,13 +7,13 @@ namespace ShuttleVNBackend.Infrastructure.Persistence.Repositories;
 
 public class VerificationCodeRepository(ShuttleVnDbContext dbContext): IVerificationCodeRepository
 {
-    public async Task<VerificationCode?> GetActiveAsync(Guid accountId, CodeType type, CancellationToken ct = default)
+    public async Task<VerificationCode?> GetActiveAsync(string email, CodeType type, CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
         
         return await dbContext.VerificationCodes
             .Where(code => 
-                code.AccountId == accountId
+                code.Email == email
                 && code.Type == type
                 && code.ExpiresAt > now
                 && code.Attempt < 5 // might put this in config later
@@ -21,10 +21,10 @@ public class VerificationCodeRepository(ShuttleVnDbContext dbContext): IVerifica
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task DeleteExistingAsync(Guid accountId, CodeType type)
+    public async Task DeleteExistingAsync(string email, CodeType type)
     {
         var old = dbContext.VerificationCodes
-            .Where(code => code.AccountId == accountId && code.Type == type);
+            .Where(code => code.Email == email && code.Type == type);
         // staging this to put add and delete into 1 transaction
         dbContext.VerificationCodes.RemoveRange(old);
     }

@@ -174,9 +174,7 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<VerificationCode>(entity =>
         {
-            entity.HasKey(e => new { e.AccountId, e.Type });
-            entity.HasOne<UserAccount>()
-                .WithOne();
+            entity.HasKey(e => new { e.Email, e.Type });
         });
     }
 
