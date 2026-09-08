@@ -24,6 +24,7 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
     public DbSet<BookingStatusHistory> BookingStatusHistories => Set<BookingStatusHistory>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Audit> Audits => Set<Audit>();
+    public DbSet<VerificationCode> VerificationCodes => Set<VerificationCode>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -164,6 +165,13 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
                 .WithMany()
                 .HasForeignKey(e => e.AccountId)
                 .IsRequired(false);
+        });
+
+        modelBuilder.Entity<VerificationCode>(entity =>
+        {
+            entity.HasKey(e => new { e.AccountId, e.Type });
+            entity.HasOne<UserAccount>()
+                .WithOne();
         });
     }
 
