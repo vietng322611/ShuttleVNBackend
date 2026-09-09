@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShuttleVNBackend.Application.DTOs.Authentication;
-using ShuttleVNBackend.Application.Exceptions;
 using ShuttleVNBackend.Application.UseCases.Authentication.Services;
 using ShuttleVNBackend.Application.UseCases.User.Services;
 using ShuttleVNBackend.Core.Entities.User.Enums;
@@ -21,59 +20,31 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
-        try
-        {
-            var account = await accountService.Register(dto);
-            return Ok(new { accountId = account.AccountId });
-        }
-        catch (ValidationException ex)
-        {
-            return ValidationProblem(new ValidationProblemDetails(ex.Errors)
-            {
-                Title = ex.Message
-            });
-        }
-        catch (ConflictException ex)
-        {
-            return Conflict(new ProblemDetails { Title = ex.Message });
-        }
+        var account = await accountService.Register(dto);
+        return Ok(new { accountId = account.AccountId });
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        try
-        {
-            var account = await appAuthService.VerifyLogin(dto);
+        var account = await appAuthService.VerifyLogin(dto);
 
-            var role = account.AccountType == AccountType.Customer ? "Customer" : "Employee";
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
-                new(ClaimTypes.Email, account.LoginEmail),
-                new(ClaimTypes.Role, role)
-            };
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(identity),
-                new AuthenticationProperties { IsPersistent = true });
-
-            return Ok(new { message = "Logged in" });
-        }
-        catch (UnauthorizedException ex)
+        var role = account.AccountType == AccountType.Customer ? "Customer" : "Employee";
+        var claims = new List<Claim>
         {
-            return Unauthorized(new ProblemDetails { Title = ex.Message });
-        }
-        catch (ValidationException ex)
-        {
-            return ValidationProblem(new ValidationProblemDetails(ex.Errors)
-            {
-                Title = ex.Message
-            });
-        }
+            new(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
+            new(ClaimTypes.Email, account.LoginEmail),
+            new(ClaimTypes.Role, role)
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity),
+            new AuthenticationProperties { IsPersistent = true });
+
+        return Ok(new { message = "Logged in" });
     }
 
     [HttpPost("logout")]
@@ -88,40 +59,16 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> IssueCode([FromBody] CodeRequestDto dto)
     {
-        try
-        {
-            var code = await appAuthService.IssueCode(dto.Email, dto.Type);
-            // return for testing. Implement EmailService later
-            return Ok(new { code });
-        }
-        catch (ValidationException ex)
-        {
-            return ValidationProblem(new ValidationProblemDetails(ex.Errors)
-            {
-                Title = ex.Message
-            });
-        }
+        var code = await appAuthService.IssueCode(dto.Email, dto.Type);
+        // return for testing. Implement EmailService later
+        return Ok(new { code });
     }
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
     {
-        try
-        {
-            await appAuthService.ResetPassword(dto);
-            return Ok(new { message = "Password reset successfully" });
-        }
-        catch (ValidationException ex)
-        {
-            return ValidationProblem(new ValidationProblemDetails(ex.Errors)
-            {
-                Title = ex.Message
-            });
-        }
-        catch (UnauthorizedException ex)
-        {
-            return Unauthorized(new ProblemDetails { Title = ex.Message });
-        }
+        await appAuthService.ResetPassword(dto);
+        return Ok(new { message = "Password reset successfully" });
     }
 }
