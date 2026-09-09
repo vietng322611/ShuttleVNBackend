@@ -72,7 +72,7 @@ public class AccountService(
         return account;
     }
 
-    public async Task<List<UserAccount>> GetAllAccounts(PageRequest page)
+    public async Task<PagedResult<UserAccount>> GetAllAccounts(PageRequest page)
         => await accountRepository.GetAllAsync(page);
     
     public async Task UpdateAccountStatus(Guid accountId, AccountStatus status)

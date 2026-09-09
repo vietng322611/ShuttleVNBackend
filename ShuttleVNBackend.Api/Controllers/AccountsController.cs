@@ -19,13 +19,8 @@ public class AccountsController(
     public async Task<IActionResult> ListAccounts([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {
         var page = new PageRequest(pageNumber, pageSize);
-        var accounts = await accountService.GetAllAccounts(page);
-        return Ok(new
-        {
-            Accounts = accounts,
-            PageNumber = pageNumber,
-            TotalCount = accounts.Count
-        });
+        var pagedResult = await accountService.GetAllAccounts(page);
+        return Ok(pagedResult);
     }
 
     [HttpPost("{accountId:guid}/lock")]
@@ -63,13 +58,8 @@ public class AccountsController(
     public async Task<IActionResult> ListCustomers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
     {
         var page = new PageRequest(pageNumber, pageSize);
-        var customers = await customerService.GetAllCustomers(page);
-        return Ok(new
-        {
-            Customers = customers,
-            PageNumber = pageNumber,
-            TotalCount = customers.Count
-        });
+        var pagedResult = await customerService.GetAllCustomers(page);
+        return Ok(pagedResult);
     }
 
     [HttpGet("customers/{id:guid}")]

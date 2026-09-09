@@ -10,7 +10,7 @@ public class CustomerService(
     ICustomerRepository customerRepository,
     IUnitOfWork unitOfWork)
 {
-    public async Task<List<Customer>> GetAllCustomers(PageRequest page)
+    public async Task<PagedResult<Customer>> GetAllCustomers(PageRequest page)
         => await customerRepository.GetAllCustomers(page);
     
     public async Task<Customer?> GetCustomerById(Guid id)
