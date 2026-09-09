@@ -5,7 +5,7 @@ namespace ShuttleVNBackend.Core.Entities.User;
 public class UserAccount
 {
     public Guid AccountId { get; set; }
-    public string? LoginEmail { get; set; }
+    public string LoginEmail { get; set; } = null!;
     public string PasswordHash { get; set; } = "";
     public AccountType AccountType { get; set; }
     public AccountStatus Status { get; set; }
