@@ -12,7 +12,7 @@ namespace ShuttleVNBackend.Application.UseCases.User.Services;
 public class AccountService(
     IAccountRepository accountRepository,
     IUnitOfWork unitOfWork,
-    AuthenticationService authenticationService)
+    AppAuthService appAuthService)
 {
     private readonly PasswordHasher<UserAccount> _hasher = new();
     
@@ -40,7 +40,7 @@ public class AccountService(
         if (record is not null)
             throw new ConflictException("Email is already registered");
 
-        if (!await authenticationService.IsValidVerificationCode(dto.Email, dto.Code, CodeType.VerifyEmail))
+        if (!await appAuthService.IsValidVerificationCode(dto.Email, dto.Code, CodeType.VerifyEmail))
             throw new ValidationException("Invalid or expired verification code");
         
         var now = DateTime.UtcNow;
