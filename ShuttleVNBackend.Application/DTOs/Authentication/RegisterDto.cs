@@ -1,10 +1,11 @@
 ﻿namespace ShuttleVNBackend.Application.DTOs.Authentication;
 
-public record RegisterDto(
-    string FullName,
-    string Phone,
-    string Email,
-    string Code,
-    string Password,
-    string ConfirmPassword
-);
+public record RegisterDto
+{
+    public string FullName { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
