@@ -10,7 +10,7 @@ using ValidationException = ShuttleVNBackend.Application.Exceptions.ValidationEx
 
 namespace ShuttleVNBackend.Application.UseCases.Authentication.Services;
 
-public class AuthenticationService(
+public class AppAuthService(
     IAccountRepository accountRepository,
     IVerificationCodeRepository verificationCodeRepository,
     IUnitOfWork unitOfWork)

@@ -5,16 +5,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShuttleVNBackend.Application.DTOs.Authentication;
 using ShuttleVNBackend.Application.Exceptions;
+using ShuttleVNBackend.Application.UseCases.Authentication.Services;
 using ShuttleVNBackend.Application.UseCases.User.Services;
 using ShuttleVNBackend.Core.Entities.User.Enums;
-using AppAuthService = ShuttleVNBackend.Application.UseCases.Authentication.Services.AuthenticationService;
 
 namespace ShuttleVNBackend.Api.Controllers;
 
 [ApiController]
 [Route("auth")]
 public class AuthController(
-    AppAuthService authenticationService,
+    AppAuthService appAuthService,
     AccountService accountService) : ControllerBase
 {
     [HttpPost("register")]
@@ -45,7 +45,7 @@ public class AuthController(
     {
         try
         {
-            var account = await authenticationService.VerifyLogin(dto);
+            var account = await appAuthService.VerifyLogin(dto);
 
             var role = account.AccountType == AccountType.Customer ? "Customer" : "Employee";
             var claims = new List<Claim>
@@ -90,7 +90,7 @@ public class AuthController(
     {
         try
         {
-            var code = await authenticationService.IssueCode(dto.Email, dto.Type);
+            var code = await appAuthService.IssueCode(dto.Email, dto.Type);
             // return for testing. Implement EmailService later
             return Ok(new { code });
         }
@@ -109,7 +109,7 @@ public class AuthController(
     {
         try
         {
-            await authenticationService.ResetPassword(dto);
+            await appAuthService.ResetPassword(dto);
             return Ok(new { message = "Password reset successfully" });
         }
         catch (ValidationException ex)

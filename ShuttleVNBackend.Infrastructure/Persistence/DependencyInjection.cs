@@ -24,7 +24,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IVerificationCodeRepository, VerificationCodeRepository>();
 
-        services.AddScoped<AuthenticationService>();
+        services.AddScoped<AppAuthService>();
         services.AddScoped<AccountService>();
         services.AddScoped<CustomerService>();
 

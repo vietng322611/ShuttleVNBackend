@@ -7,16 +7,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Controllers\Docs\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\ShuttleVNBackend.Application\ShuttleVNBackend.Application.csproj" />
       <ProjectReference Include="..\ShuttleVNBackend.Infrastructure\ShuttleVNBackend.Infrastructure.csproj" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Controllers\Docs\" />
     </ItemGroup>
 
 </Project>

@@ -20,7 +20,12 @@ public class AccountsController(
     {
         var page = new PageRequest(pageNumber, pageSize);
         var accounts = await accountService.GetAllAccounts(page);
-        return Ok(accounts);
+        return Ok(new
+        {
+            Accounts = accounts,
+            PageNumber = pageNumber,
+            TotalCount = accounts.Count
+        });
     }
 
     [HttpPost("{accountId:guid}/lock")]
@@ -59,7 +64,12 @@ public class AccountsController(
     {
         var page = new PageRequest(pageNumber, pageSize);
         var customers = await customerService.GetAllCustomers(page);
-        return Ok(customers);
+        return Ok(new
+        {
+            Customers = customers,
+            PageNumber = pageNumber,
+            TotalCount = customers.Count
+        });
     }
 
     [HttpGet("customers/{id:guid}")]
@@ -67,7 +77,7 @@ public class AccountsController(
     public async Task<IActionResult> GetCustomer([FromRoute] Guid id)
     {
         var customer = await customerService.GetCustomerById(id);
-        if (customer is null) return NotFound();
+        if (customer is null) return NotFound(new ProblemDetails { Title = "Resource not found" });
         return Ok(customer);
     }
 

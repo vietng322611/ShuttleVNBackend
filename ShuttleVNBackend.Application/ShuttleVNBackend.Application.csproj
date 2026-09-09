@@ -14,4 +14,10 @@
       <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.12" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Interfaces\Repositories\Docs\" />
+      <Folder Include="UseCases\Authentication\Docs\" />
+      <Folder Include="UseCases\User\Docs\" />
+    </ItemGroup>
+
 </Project>
