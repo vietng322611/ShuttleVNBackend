@@ -7,9 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="DTOs\" />
-      <Folder Include="Interfaces\" />
-      <Folder Include="UseCases\" />
+      <ProjectReference Include="..\ShuttleVNBackend.Core\ShuttleVNBackend.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.12" />
     </ItemGroup>
 
 </Project>

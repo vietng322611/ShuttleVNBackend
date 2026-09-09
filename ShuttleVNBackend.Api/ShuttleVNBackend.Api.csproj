@@ -7,12 +7,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7"/>
+      <Folder Include="Controllers\Docs\" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Controllers\" />
-      <Folder Include="Middlewares\" />
+      <ProjectReference Include="..\ShuttleVNBackend.Application\ShuttleVNBackend.Application.csproj" />
+      <ProjectReference Include="..\ShuttleVNBackend.Infrastructure\ShuttleVNBackend.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
     </ItemGroup>
 
 </Project>
