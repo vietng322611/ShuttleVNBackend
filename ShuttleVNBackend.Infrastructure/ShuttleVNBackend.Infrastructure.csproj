@@ -7,11 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Persistence\Repositories\" />
-      <Folder Include="Services\" />
-    </ItemGroup>
-
-    <ItemGroup>
+      <ProjectReference Include="..\ShuttleVNBackend.Application\ShuttleVNBackend.Application.csproj" />
       <ProjectReference Include="..\ShuttleVNBackend.Core\ShuttleVNBackend.Core.csproj" />
     </ItemGroup>
 
@@ -26,6 +22,7 @@
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
       <PackageReference Include="Serilog" Version="4.4.0" />
       <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+      <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.2" />
     </ItemGroup>
 
 </Project>

@@ -7,15 +7,22 @@ namespace ShuttleVNBackend.Infrastructure.Persistence.Repositories;
 
 public class AccountRepository(ShuttleVnDbContext dbContext): IAccountRepository
 {
-    public async Task<List<UserAccount>> GetAllAsync(PageRequest page, CancellationToken ct = default)
+    public async Task<PagedResult<UserAccount>> GetAllAsync(PageRequest page, CancellationToken ct = default)
     {
-        var skip = (page.PageNumber - 1) * page.PageSize;
-
-        return await dbContext.UserAccounts
-            .OrderBy(x => x.CreatedAt)
-            .Skip(skip)
+        var query = dbContext.UserAccounts.OrderBy(x => x.CreatedAt);
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page.PageNumber - 1) * page.PageSize)
             .Take(page.PageSize)
             .ToListAsync(ct);
+
+        return new PagedResult<UserAccount>
+        {
+            Items = items,
+            PageNumber = page.PageNumber,
+            PageSize = page.PageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<UserAccount?> GetByIdAsync(Guid id, CancellationToken ct = default)
