@@ -30,8 +30,9 @@ public class ProfileService(
         }
         else
         {
-            var employee = await employeeRepository.GetByAccountIdAsync(accountId)
-                          ?? throw new NotFoundException("Profile not found");
+            var employeeAccount = await employeeRepository.GetByAccountIdAsync(accountId)
+                                  ?? throw new NotFoundException("Profile not found");
+            var employee = employeeAccount.Employee ?? throw new NotFoundException("Profile not found");
             employee.FullName = dto.FullName;
             employee.Phone = dto.Phone;
             employee.UpdatedAt = now;
