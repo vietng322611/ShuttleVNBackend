@@ -70,6 +70,10 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
 
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("Status", "CreatedAt", "BookingId");
+
+                    b.HasIndex("Date", "CourtId", "StartTime", "BookingId");
+
                     b.ToTable("Bookings");
 
                     b.HasAnnotation("CustomExclusion:Constraints", "[{\"parts\":[{\"path\":\"CourtId\",\"op\":\"=\"},{\"path\":\"Date\",\"op\":\"=\"},{\"expr\":\"tsrange(\\u0022Date\\u0022 \\u002B \\u0022StartTime\\u0022, \\u0022Date\\u0022 \\u002B \\u0022EndTime\\u0022)\",\"op\":\"\\u0026\\u0026\"}],\"filter\":\"\\u0022Status\\u0022 \\u003C\\u003E \\u0027Cancelled\\u0027\",\"name\":\"ex_bookings_no_overlap\"}]");
@@ -107,8 +111,10 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("ActorType")
-                        .HasColumnType("integer");
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid>("BookingId")
                         .HasColumnType("uuid");
@@ -116,10 +122,10 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("CustomerId")
+                    b.Property<Guid?>("ChangedByEmployee")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("EmployeeId")
+                    b.Property<Guid?>("CustomerId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("NewStatus")
@@ -135,13 +141,20 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BookingId");
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasFilter("\"OldStatus\" IS NULL");
+
+                    b.HasIndex("ChangedByEmployee");
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("EmployeeId");
+                    b.HasIndex("BookingId", "ChangedAt", "Id");
 
-                    b.ToTable("BookingStatusHistories");
+                    b.ToTable("BookingStatusHistories", t =>
+                        {
+                            t.HasCheckConstraint("ck_booking_status_history_actor", "(\"ActorType\" = 'System' AND \"ChangedByEmployee\" IS NULL AND \"CustomerId\" IS NULL) OR (\"ActorType\" = 'Employee' AND \"ChangedByEmployee\" IS NOT NULL AND \"CustomerId\" IS NULL) OR (\"ActorType\" = 'Customer' AND \"CustomerId\" IS NOT NULL AND \"ChangedByEmployee\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ShuttleVNBackend.Core.Entities.Bookings.Invoice", b =>
@@ -221,14 +234,19 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
 
                     b.HasIndex("BookingId")
                         .IsUnique()
-                        .HasFilter("\"Status\" = 'Unpaid'");
+                        .HasFilter("\"Status\" IN ('Unpaid', 'Paid')");
 
                     b.HasIndex("InvoiceCode")
                         .IsUnique();
 
                     b.HasIndex("IssuedByEmployee");
 
-                    b.ToTable("Invoices");
+                    b.HasIndex("PaidByEmployee");
+
+                    b.ToTable("Invoices", t =>
+                        {
+                            t.HasCheckConstraint("ck_invoice_payment_group", "(\"Status\" = 'Unpaid' AND \"PaidAt\" IS NULL AND \"PaymentMethod\" IS NULL AND \"PaidByEmployee\" IS NULL) OR (\"Status\" = 'Paid' AND \"PaidAt\" IS NOT NULL AND \"PaymentMethod\" IS NOT NULL AND \"PaidByEmployee\" IS NOT NULL) OR \"Status\" = 'Cancelled'");
+                        });
                 });
 
             modelBuilder.Entity("ShuttleVNBackend.Core.Entities.Bookings.InvoiceDailyCounter", b =>
@@ -241,7 +259,10 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
 
                     b.HasKey("IssueDate");
 
-                    b.ToTable("InvoiceDailyCounters");
+                    b.ToTable("InvoiceDailyCounters", t =>
+                        {
+                            t.HasCheckConstraint("ck_invoice_daily_counter_positive", "\"LastNumber\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("ShuttleVNBackend.Core.Entities.Courts.BadmintonCourt", b =>
@@ -552,6 +573,8 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("Phone");
+
                     b.ToTable("Customers");
                 });
 
@@ -699,13 +722,13 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ShuttleVNBackend.Core.Entities.Users.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("ChangedByEmployee");
+
                     b.HasOne("ShuttleVNBackend.Core.Entities.Users.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId");
-
-                    b.HasOne("ShuttleVNBackend.Core.Entities.Users.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId");
 
                     b.Navigation("Booking");
 
@@ -722,15 +745,22 @@ namespace ShuttleVNBackend.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ShuttleVNBackend.Core.Entities.Users.Employee", "Employee")
+                    b.HasOne("ShuttleVNBackend.Core.Entities.Users.Employee", "IssueEmployee")
                         .WithMany()
                         .HasForeignKey("IssuedByEmployee")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ShuttleVNBackend.Core.Entities.Users.Employee", "PaidEmployee")
+                        .WithMany()
+                        .HasForeignKey("PaidByEmployee")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Booking");
 
-                    b.Navigation("Employee");
+                    b.Navigation("IssueEmployee");
+
+                    b.Navigation("PaidEmployee");
                 });
 
             modelBuilder.Entity("ShuttleVNBackend.Core.Entities.Courts.CourtSchedule", b =>

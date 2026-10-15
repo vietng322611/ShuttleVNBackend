@@ -1,4 +1,6 @@
-﻿using ShuttleVNBackend.Api.Common;
+﻿using Npgsql;
+using Microsoft.EntityFrameworkCore;
+using ShuttleVNBackend.Api.Common;
 using ShuttleVNBackend.Application.Exceptions;
 using ValidationException = ShuttleVNBackend.Application.Exceptions.ValidationException;
 
@@ -27,6 +29,20 @@ public class ExceptionHandlingMiddleware(
                 ex.Message, errors);
 
             await context.Response.WriteAsJsonAsync(problem);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+                                           {
+                                               SqlState: PostgresErrorCodes.ExclusionViolation
+                                                   or PostgresErrorCodes.UniqueViolation
+                                           })
+        {
+            logger.LogWarning(ex, "Database constraint conflict");
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+
+            await context.Response.WriteAsJsonAsync(ApiResponseFactory.Failure<object>(
+                "The data was changed by another operation. Please reload and try again."));
         }
         catch (Exception ex)
         {

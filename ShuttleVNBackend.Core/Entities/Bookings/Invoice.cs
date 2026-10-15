@@ -30,5 +30,6 @@ public class Invoice
     public string Note { get; set; } = string.Empty;
 
     public virtual Booking Booking { get; set; } = null!;
-    public virtual Employee Employee { get; set; } = null!;
+    public virtual Employee IssueEmployee { get; set; } = null!;
+    public virtual Employee? PaidEmployee { get; set; }
 }

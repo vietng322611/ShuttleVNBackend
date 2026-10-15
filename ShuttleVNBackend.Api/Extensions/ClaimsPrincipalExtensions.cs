@@ -17,4 +17,9 @@ public static class ClaimsPrincipalExtensions
     {
         return user.FindFirstValue(ClaimTypes.Role) == "Customer" ? AccountType.Customer : AccountType.Employee;
     }
+
+    public static bool IsAdmin(this ClaimsPrincipal user)
+    {
+        return user.HasClaim("IsAdmin", "true");
+    }
 }

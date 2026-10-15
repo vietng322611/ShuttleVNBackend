@@ -11,7 +11,7 @@ public class BookingStatusHistory
     public BookingStatus? OldStatus { get; set; }
     public BookingStatus NewStatus { get; set; }
     public ActorType ActorType { get; set; }
-    public Guid? EmployeeId { get; set; }
+    public Guid? ChangedByEmployee { get; set; }
     public Guid? CustomerId { get; set; }
     public DateTime ChangedAt { get; set; }
     public string Reason { get; set; } = string.Empty;

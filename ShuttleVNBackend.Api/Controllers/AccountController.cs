@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShuttleVNBackend.Api.Common;
+using ShuttleVNBackend.Api.Extensions;
 using ShuttleVNBackend.Api.DTOs.Common;
 using ShuttleVNBackend.Api.DTOs.Users;
 using ShuttleVNBackend.Application.Common;
 using ShuttleVNBackend.Application.DTOs.Users;
+using ShuttleVNBackend.Application.DTOs.Bookings;
 using ShuttleVNBackend.Application.UseCases.Users.Services;
-using ShuttleVNBackend.Core.Entities.Users;
 using ShuttleVNBackend.Core.Entities.Users.Enums;
 
 namespace ShuttleVNBackend.Api.Controllers;
@@ -33,7 +34,7 @@ public class AccountController(
     public async Task<ActionResult<ApiResponse<dynamic>>> LockAccount(
         [FromRoute] Guid accountId)
     {
-        await accountService.UpdateAccountStatus(accountId, AccountStatus.Disabled);
+        await accountService.UpdateAccountStatus(accountId, AccountStatus.Disabled, User.IsAdmin());
         return Ok(ApiResponseFactory.Success(new
         {
             message = "Account locked"
@@ -45,7 +46,7 @@ public class AccountController(
     public async Task<ActionResult<ApiResponse<dynamic>>> UnlockAccount(
         [FromRoute] Guid accountId)
     {
-        await accountService.UpdateAccountStatus(accountId, AccountStatus.Active);
+        await accountService.UpdateAccountStatus(accountId, AccountStatus.Active, User.IsAdmin());
         return Ok(ApiResponseFactory.Success(new
         {
             message = "Account unlocked"
@@ -54,32 +55,45 @@ public class AccountController(
 
     [HttpGet("customers")]
     [Authorize(Policy = "StaffOnly")]
-    public async Task<ActionResult<ApiResponse<PagedResult<Customer>>>> ListCustomers(
+    public async Task<ActionResult<ApiResponse<PagedResult<CustomerListItemDto>>>> ListCustomers(
+        [FromQuery] string? keyword,
         [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
     {
         var page = new PageRequest(pageNumber, pageSize);
-        var pagedResult = await customerService.GetAllAsync(page);
-        return Ok(ApiResponseFactory.Success(pagedResult));
+        return Ok(ApiResponseFactory.Success(await customerService.SearchAsync(keyword, page, ct)));
     }
 
     [HttpGet("customers/{id:guid}")]
     [Authorize(Policy = "StaffOnly")]
-    public async Task<ActionResult<ApiResponse<Customer>>> GetCustomer(
-        [FromRoute] Guid id)
+    public async Task<ActionResult<ApiResponse<CustomerListItemDto>>> GetCustomer(
+        [FromRoute] Guid id,
+        CancellationToken ct = default)
     {
-        var customer = await customerService.GetByIdAsync(id);
-        if (customer is null) return NotFound(new ProblemDetails { Title = "Resource not found" });
-        return Ok(ApiResponseFactory.Success(customer));
+        return Ok(ApiResponseFactory.Success(await customerService.GetByIdAsync(id, ct)));
     }
 
-    // Create customer (profile-only)
+    [HttpGet("customers/{id:guid}/bookings")]
+    [Authorize(Policy = "StaffOnly")]
+    public async Task<ActionResult<ApiResponse<PagedResult<BookingListItemDto>>>> GetCustomerBookings(
+        [FromRoute] Guid id,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var page = new PageRequest(pageNumber, pageSize);
+        return Ok(ApiResponseFactory.Success(await customerService.GetBookingsAsync(id, page, ct)));
+    }
+
+        // Create customer (profile-only)
     [HttpPost("customers")]
     [Authorize(Policy = "StaffOnly")]
-    public async Task<ActionResult<ApiResponse<Customer>>> CreateCustomer(
-        [FromBody] CustomerProfileDto dto)
+    public async Task<ActionResult<ApiResponse<CustomerListItemDto>>> CreateCustomer(
+        [FromBody] CustomerProfileDto dto,
+        CancellationToken ct = default)
     {
-        var created = await customerService.CreateCustomer(dto);
+        var created = await customerService.CreateCustomer(dto, ct);
         return CreatedAtAction(
             nameof(GetCustomer),
             new { id = created.CustomerId },
@@ -88,11 +102,11 @@ public class AccountController(
 
     [HttpPut("customers/{id:guid}")]
     [Authorize(Policy = "StaffOnly")]
-    public async Task<ActionResult<ApiResponse<Customer>>> UpdateCustomer(
+    public async Task<ActionResult<ApiResponse<CustomerListItemDto>>> UpdateCustomer(
         [FromRoute] Guid id,
-        [FromBody] CustomerProfileDto dto)
+        [FromBody] CustomerProfileDto dto,
+        CancellationToken ct = default)
     {
-        var updated = await customerService.UpdateCustomer(id, dto);
-        return Ok(ApiResponseFactory.Success(updated));
+        return Ok(ApiResponseFactory.Success(await customerService.UpdateCustomer(id, dto, ct)));
     }
 }

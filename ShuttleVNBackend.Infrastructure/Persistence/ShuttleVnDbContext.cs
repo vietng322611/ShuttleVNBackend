@@ -23,10 +23,10 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingStatusHistory> BookingStatusHistories => Set<BookingStatusHistory>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceDailyCounter> InvoiceDailyCounters => Set<InvoiceDailyCounter>();
     public DbSet<Audit> Audits => Set<Audit>();
     public DbSet<VerificationCode> VerificationCodes => Set<VerificationCode>();
     public DbSet<BookingPriceSegment> BookingPriceSegments => Set<BookingPriceSegment>();
-    public DbSet<InvoiceDailyCounter> InvoiceDailyCounters => Set<InvoiceDailyCounter>();
     public DbSet<IdempotencyRequest> IdempotencyRequests => Set<IdempotencyRequest>();
     public DbSet<Notification> Notifications => Set<Notification>();
 
@@ -43,6 +43,18 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
     public void RemoveRange<T>(IEnumerable<T> entities) where T : class
     {
         Set<T>().RemoveRange(entities);
+    }
+
+    public async Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> action,
+        CancellationToken ct = default)
+    {
+        if (Database.CurrentTransaction is not null)
+            return await action(ct);
+
+        await using var transaction = await Database.BeginTransactionAsync(ct);
+        var result = await action(ct);
+        await transaction.CommitAsync(ct);
+        return result;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -76,6 +88,7 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.AccountId).IsUnique();
             entity.Property(e => e.Email).IsRequired();
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Phone);
             entity.HasOne<UserAccount>()
                 .WithOne(u => u.Customer)
                 .HasForeignKey<Customer>(e => e.AccountId)
@@ -130,7 +143,9 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
                 .WithMany()
                 .HasForeignKey(e => e.CourtId);
 
-            // BR-08
+            entity.HasIndex(e => new { e.Status, e.CreatedAt, e.BookingId });
+            entity.HasIndex(e => new { e.Date, e.CourtId, e.StartTime, e.BookingId });          
+
             entity.HasExclusionConstraint(ex => ex
                 .WithEquality(e => e.CourtId)
                 .WithEquality(e => e.Date)
@@ -144,6 +159,7 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
             entity.HasKey(e => e.Id);
             entity.Property(e => e.OldStatus).HasConversion<string>();
             entity.Property(e => e.NewStatus).HasConversion<string>();
+            entity.Property(e => e.ActorType).HasConversion<string>().HasMaxLength(20);
 
             entity.HasOne(e => e.Booking)
                 .WithMany()
@@ -151,13 +167,24 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
 
             entity.HasOne(e => e.Employee)
                 .WithMany()
-                .HasForeignKey(e => e.EmployeeId)
+                .HasForeignKey(e => e.ChangedByEmployee)
                 .IsRequired(false);
 
             entity.HasOne(e => e.Customer)
                 .WithMany()
                 .HasForeignKey(e => e.CustomerId)
                 .IsRequired(false);
+
+            entity.HasIndex(e => new { e.BookingId, e.ChangedAt, e.Id });
+
+            entity.HasIndex(e => e.BookingId)
+                .IsUnique()
+                .HasFilter("\"OldStatus\" IS NULL");
+
+            entity.ToTable(t => t.HasCheckConstraint("ck_booking_status_history_actor",
+                "(\"ActorType\" = 'System' AND \"ChangedByEmployee\" IS NULL AND \"CustomerId\" IS NULL) OR " +
+                "(\"ActorType\" = 'Employee' AND \"ChangedByEmployee\" IS NOT NULL AND \"CustomerId\" IS NULL) OR " +
+                "(\"ActorType\" = 'Customer' AND \"CustomerId\" IS NOT NULL AND \"ChangedByEmployee\" IS NULL)"));
         });
 
         modelBuilder.Entity<Invoice>(entity =>
@@ -172,14 +199,31 @@ public class ShuttleVnDbContext : DbContext, IUnitOfWork
                 .WithMany()
                 .HasForeignKey(e => e.BookingId);
 
-            entity.HasOne(e => e.Employee)
+            entity.HasOne(e => e.IssueEmployee)
                 .WithMany()
                 .HasForeignKey(e => e.IssuedByEmployee);
 
-            // BR-13
+            entity.HasOne(e => e.PaidEmployee)
+                .WithMany()
+                .HasForeignKey(e => e.PaidByEmployee)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(e => e.BookingId)
                 .IsUnique()
-                .HasFilter("\"Status\" = 'Unpaid'");
+                .HasFilter("\"Status\" IN ('Unpaid', 'Paid')");
+
+            entity.ToTable(t => t.HasCheckConstraint("ck_invoice_payment_group",
+                "(\"Status\" = 'Unpaid' AND \"PaidAt\" IS NULL AND \"PaymentMethod\" IS NULL AND \"PaidByEmployee\" IS NULL) OR " +
+                "(\"Status\" = 'Paid' AND \"PaidAt\" IS NOT NULL AND \"PaymentMethod\" IS NOT NULL AND \"PaidByEmployee\" IS NOT NULL) OR " +
+                "\"Status\" = 'Cancelled'"));
+        });
+
+        modelBuilder.Entity<InvoiceDailyCounter>(entity =>
+        {
+            entity.HasKey(e => e.IssueDate);
+            entity.Property(e => e.IssueDate).ValueGeneratedNever();
+            entity.ToTable(t => t.HasCheckConstraint("ck_invoice_daily_counter_positive", "\"LastNumber\" > 0"));
         });
 
         modelBuilder.Entity<Audit>(entity =>

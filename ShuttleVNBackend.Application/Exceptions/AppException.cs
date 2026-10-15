@@ -29,5 +29,8 @@ public class ValidationException(
 public class UnauthorizedException(string message = "Unauthorized")
     : AppException(message, StatusCodes.Status401Unauthorized, "UNAUTHORIZED");
 
+public class ForbiddenException(string message = "Forbidden")
+    : AppException(message, StatusCodes.Status403Forbidden, "FORBIDDEN");
+
 public class ConflictException(string message = "Resource already exists")
     : AppException(message, StatusCodes.Status409Conflict, "CONFLICT");

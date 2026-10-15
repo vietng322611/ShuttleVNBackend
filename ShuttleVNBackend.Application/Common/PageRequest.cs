@@ -2,6 +2,8 @@
 
 public record PageRequest
 {
+    public const int MaxPageSize = 100;
+
     public PageRequest(int pageNumber, int pageSize)
     {
         PageNumber = pageNumber;
@@ -17,6 +19,6 @@ public record PageRequest
     public int PageSize
     {
         get;
-        private init => field = Math.Max(1, value);
+        private init => field = Math.Clamp(value, 1, MaxPageSize);
     } = 20;
 }
