@@ -4,5 +4,6 @@ public enum CodeType
 {
     VerifyEmail,
     ResetPassword,
-    QuickBooking
+    QuickBooking,
+    SetPassword
 }

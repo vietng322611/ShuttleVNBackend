@@ -17,7 +17,8 @@ namespace ShuttleVNBackend.Api.Controllers;
 [Route("api/auth")]
 public class AuthController(
     AppAuthService appAuthService,
-    AccountService accountService) : ControllerBase
+    AccountService accountService,
+    PasswordSetupService passwordSetupService) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -93,6 +94,32 @@ public class AuthController(
         return Ok(ApiResponseFactory.Success(new
         {
             message = "Password reset successfully"
+        }));
+    }
+
+    [HttpPost("set-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<dynamic>>> SetPassword(
+        [FromBody] SetPasswordDto dto,
+        CancellationToken ct)
+    {
+        await passwordSetupService.SetPasswordAsync(dto, ct);
+        return Ok(ApiResponseFactory.Success(new
+        {
+            message = "Password set successfully. You can now sign in."
+        }));
+    }
+
+    [HttpPost("resend-setup-link")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<dynamic>>> ResendSetupLink(
+        [FromBody] ResendSetupLinkDto dto,
+        CancellationToken ct)
+    {
+        await passwordSetupService.ResendAsync(dto, ct);
+        return Ok(ApiResponseFactory.Success(new
+        {
+            message = "If the email belongs to an account awaiting activation, a new link has been sent."
         }));
     }
 

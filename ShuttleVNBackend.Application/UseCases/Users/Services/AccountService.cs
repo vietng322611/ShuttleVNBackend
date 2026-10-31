@@ -5,7 +5,9 @@ using ShuttleVNBackend.Application.DTOs.Users;
 using ShuttleVNBackend.Application.Exceptions;
 using ShuttleVNBackend.Application.Interfaces.Repositories;
 using ShuttleVNBackend.Application.Interfaces.Repositories.Users;
+using ShuttleVNBackend.Application.UseCases.Authentication.Helpers;
 using ShuttleVNBackend.Application.UseCases.Authentication.Services;
+using ShuttleVNBackend.Application.UseCases.Users.Helpers;
 using ShuttleVNBackend.Core.Entities.Users;
 using ShuttleVNBackend.Core.Entities.Users.Enums;
 
@@ -15,7 +17,9 @@ public class AccountService(
     IAccountRepository accountRepository,
     ICustomerRepository customerRepository,
     IUnitOfWork unitOfWork,
-    AppAuthService appAuthService)
+    AppAuthService appAuthService,
+    PasswordSetupService passwordSetupService,
+    TimeProvider clock)
 {
     private readonly PasswordHasher<UserAccount> _hasher = new();
 
@@ -41,7 +45,9 @@ public class AccountService(
 
         var record = await accountRepository.GetByEmailAsync(dto.Email);
         if (record is not null)
-            throw new ConflictException("Email is already registered");
+            throw new ConflictException(record.Status == AccountStatus.PendingActivation
+                ? "Account is awaiting activation. Use the password setup link sent to your email or request a new one."
+                : "Email is already registered");
 
         if (!await appAuthService.IsValidVerificationCode(dto.Email, dto.Code, CodeType.VerifyEmail))
             throw new ValidationException("Invalid or expired verification code");
@@ -86,6 +92,66 @@ public class AccountService(
         return account;
     }
 
+    public async Task<CustomerListItemDto> CreateCustomerAccountAsync(CustomerProfileDto dto,
+        CancellationToken ct = default)
+    {
+        var profile = CustomerProfileRules.Normalize(dto, true);
+        if (!PasswordSetupRules.IsValidEmail(profile.Email))
+            throw new ValidationException(errors: new Dictionary<string, string[]>
+            {
+                ["Email"] = ["Email is not valid"]
+            });
+
+        var customerId = await unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            if (await accountRepository.GetByEmailAsync(profile.Email, token) is not null)
+                throw new ConflictException("Email is already registered");
+
+            var customer = await customerRepository.GetByEmailAsync(profile.Email, token);
+            if (customer?.AccountId is not null)
+                throw new ConflictException("Customer already has an account");
+
+            var now = clock.GetUtcNow().UtcDateTime;
+            var account = new UserAccount
+            {
+                AccountId = Guid.NewGuid(),
+                LoginEmail = profile.Email,
+                AccountType = AccountType.Customer,
+                Status = AccountStatus.PendingActivation,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            await unitOfWork.AddAsync(account, token);
+
+            if (customer is null)
+            {
+                customer = new Customer
+                {
+                    CustomerId = Guid.NewGuid(),
+                    AccountId = account.AccountId,
+                    FullName = profile.FullName,
+                    Phone = profile.Phone,
+                    Email = profile.Email,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                await unitOfWork.AddAsync(customer, token);
+            }
+            else
+            {
+                customer.AccountId = account.AccountId;
+                customer.UpdatedAt = now;
+            }
+
+            await unitOfWork.SaveChangesAsync(token);
+            await passwordSetupService.IssueAsync(profile.Email, customer.FullName, token);
+            return customer.CustomerId;
+        }, ct);
+
+        return await customerRepository.GetListItemByIdAsync(customerId, ct)
+               ?? throw new NotFoundException("Customer not found");
+    }
+
     public async Task<PagedResult<UserAccount>> GetAllAccounts(PageRequest page)
     {
         return await accountRepository.GetAllAsync(page);
@@ -104,6 +170,9 @@ public class AccountService(
 
         if (!isAdmin && account.AccountType != AccountType.Customer)
             throw new ForbiddenException("Staff can only manage customer accounts");
+
+        if (account.Status == AccountStatus.PendingActivation)
+            throw new ConflictException("Account is awaiting activation and cannot be locked or unlocked");
 
         if (account.Status == status) return;
 

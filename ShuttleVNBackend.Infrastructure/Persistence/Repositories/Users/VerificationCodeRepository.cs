@@ -21,6 +21,27 @@ public class VerificationCodeRepository(ShuttleVnDbContext dbContext) : IVerific
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<VerificationCode?> GetAsync(string email, CodeType type, CancellationToken ct = default)
+    {
+        return await dbContext.VerificationCodes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(code => code.Email == email && code.Type == type, ct);
+    }
+
+    public async Task<bool> TryConsumeAsync(string email, CodeType type, string codeHash, DateTime nowUtc,
+        CancellationToken ct = default)
+    {
+        var updated = await dbContext.VerificationCodes
+            .Where(code =>
+                code.Email == email
+                && code.Type == type
+                && code.CodeHash == codeHash
+                && !code.IsUsed
+                && code.ExpiresAt > nowUtc)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(code => code.IsUsed, true), ct);
+        return updated == 1;
+    }
+
     public async Task DeleteExistingAsync(string email, CodeType type)
     {
         var old = dbContext.VerificationCodes

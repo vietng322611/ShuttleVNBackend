@@ -41,6 +41,10 @@ public class AppAuthService(
         if (account.Status is AccountStatus.Disabled)
             throw new UnauthorizedException("This account is disabled. Please contact support.");
 
+        if (account.Status is AccountStatus.PendingActivation)
+            throw new ForbiddenException(
+                "This account has not been activated. Please set your password using the link sent to your email.");
+
         var passwordResult = _hasher.VerifyHashedPassword(account, account.PasswordHash, dto.Password);
         if (passwordResult == PasswordVerificationResult.Failed)
         {
@@ -77,6 +81,10 @@ public class AppAuthService(
         var account = await accountRepository.GetByEmailAsync(dto.Email);
         if (account is null)
             throw new ValidationException("Invalid email");
+
+        if (account.Status is AccountStatus.PendingActivation)
+            throw new ForbiddenException(
+                "This account has not been activated. Please set your password using the link sent to your email.");
 
         if (!await IsValidVerificationCode(dto.Email, dto.Code, CodeType.ResetPassword))
             throw new ValidationException("Invalid or expired verification code");
@@ -175,7 +183,7 @@ public class AppAuthService(
         return number.ToString("D6"); // zero-padded to 6 digits
     }
 
-    private static string HashCode(string code)
+    internal static string HashCode(string code)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(code));
         return Convert.ToBase64String(bytes);

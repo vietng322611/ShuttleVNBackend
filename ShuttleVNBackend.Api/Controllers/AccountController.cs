@@ -86,14 +86,13 @@ public class AccountController(
         return Ok(ApiResponseFactory.Success(await customerService.GetBookingsAsync(id, page, ct)));
     }
 
-    // Create customer (profile-only)
     [HttpPost("customers")]
     [Authorize(Policy = "StaffOnly")]
-    public async Task<ActionResult<ApiResponse<CustomerListItemDto>>> CreateCustomer(
+    public async Task<ActionResult<ApiResponse<CustomerListItemDto>>> CreateCustomerAccount(
         [FromBody] CustomerProfileDto dto,
         CancellationToken ct = default)
     {
-        var created = await customerService.CreateCustomer(dto, ct);
+        var created = await accountService.CreateCustomerAccountAsync(dto, ct);
         return CreatedAtAction(
             nameof(GetCustomer),
             new { id = created.CustomerId },

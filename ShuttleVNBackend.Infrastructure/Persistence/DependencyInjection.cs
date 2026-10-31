@@ -38,6 +38,7 @@ public static class DependencyInjection
 
         services.AddSingleton(TimeProvider.System);
         services.AddEmailService(configuration);
+        services.AddAccountSetup(configuration);
         services.AddHostedService<BookingNotificationWorker>();
         services.AddDataProtection();
         services.AddHttpContextAccessor();
@@ -59,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUser, CurrentUser>();
 
         services.AddScoped<AppAuthService>();
+        services.AddScoped<PasswordSetupService>();
         services.AddScoped<AccountService>();
         services.AddScoped<CustomerService>();
         services.AddScoped<EmployeeService>();

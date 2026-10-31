@@ -21,6 +21,9 @@ public class ExceptionHandlingMiddleware(
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = ex.StatusCode;
 
+            if (ex is TooManyRequestsException tooManyRequests)
+                context.Response.Headers["Retry-After"] = tooManyRequests.RetryAfterSeconds.ToString();
+
             IDictionary<string, string[]> errors = new Dictionary<string, string[]>();
             if (ex is ValidationException validationEx)
                 errors = validationEx.Errors;

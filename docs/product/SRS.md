@@ -1,6 +1,6 @@
 # Tài liệu đặc tả yêu cầu phần mềm (SRS)
 
-**Hệ thống đặt sân cầu lông** · Phiên bản 2.0 · 28/10/2026
+**Hệ thống đặt sân cầu lông** · Phiên bản 2.1 · 30/10/2026
 
 ## 1. Giới thiệu
 
@@ -33,6 +33,7 @@ Ngoài phạm vi phiên bản này:
 | Báo giá | Tổng tiền do máy chủ tính cho lịch người dùng chọn. Báo giá chỉ để xem, không giữ chỗ. |
 | Hóa đơn hợp lệ | Hóa đơn ở trạng thái Chưa thanh toán (`UNPAID`) hoặc Đã thanh toán (`PAID`). Hóa đơn Đã hủy (`CANCELLED`) và Đã hoàn tiền (`REFUNDED`) chỉ để tra cứu. |
 | Xóa tài khoản | Xóa vĩnh viễn bản ghi tài khoản đăng nhập; hồ sơ, đặt sân, hóa đơn và nhật ký được giữ lại (BR-15). |
+| Chờ kích hoạt (`PENDING_ACTIVATION`) | Trạng thái tài khoản khách do nhân viên tạo, chưa có mật khẩu; chuyển `ACTIVE` khi khách đặt mật khẩu qua liên kết (BR-11, BR-12, BR-26). |
 
 ### 1.4 Tài liệu tham chiếu
 
@@ -256,13 +257,15 @@ Mã tự sinh theo định dạng DS-{chữ và số}, phần chữ và số có
 
 - Mỗi tài khoản liên kết đúng một hồ sơ (Nhân viên hoặc Khách hàng, không đồng thời cả hai). Mỗi hồ sơ liên kết tối đa một tài khoản.
 - Tài khoản nội bộ chỉ do QTV tạo. Tài khoản khách do khách tự đăng ký, hoặc do nhân viên tạo sau khi xác minh thông tin khách.
+- Tài khoản khách do nhân viên tạo có trạng thái `PENDING_ACTIVATION` và chưa có mật khẩu. Hệ thống gửi đến email hồ sơ liên kết thiết lập mật khẩu hiệu lực 24 giờ (BR-26). Liên kết hết hạn không làm mất hồ sơ khách và lịch sử đặt sân; khách tự yêu cầu gửi lại liên kết mới, không cần nhân viên tạo lại.
 - Email đăng ký đã có hồ sơ chưa liên kết: dùng lại mã khách hàng và lịch sử; không tạo hồ sơ trùng, không ghi đè thông tin cũ bằng dữ liệu từ form.
 - Khách tự đăng ký phải xác minh email trước khi liên kết. Nếu email đã dùng để đăng nhập hoặc hồ sơ đã có tài khoản, từ chối tài khoản thứ hai và hướng dẫn đăng nhập hoặc quên mật khẩu.
 - Tạo đồng thời phải bảo đảm duy nhất; yêu cầu thua xung đột không để lại tài khoản hoặc hồ sơ mồ côi.
 
 #### BR-12 Khóa đăng nhập
 
-- Tài khoản chỉ có `ACTIVE` hoặc `DISABLED`; "khóa" và "vô hiệu hóa" là cùng một trạng thái.
+- Tài khoản có `ACTIVE`, `DISABLED` hoặc `PENDING_ACTIVATION`; "khóa" và "vô hiệu hóa" là cùng một trạng thái `DISABLED`.
+- `PENDING_ACTIVATION` không đăng nhập được, không thuộc phạm vi khóa/mở khóa, không tính bộ đếm sai mật khẩu và không dùng được "Quên mật khẩu". Khách đặt mật khẩu thành công thì chuyển `ACTIVE` (BR-26).
 - Sai mật khẩu 5 lần liên tiếp: chuyển `DISABLED` ngay ở lần thứ 5 và ghi nhật ký. Bộ đếm chỉ tính sai mật khẩu của tài khoản `ACTIVE`, tách khỏi bộ đếm sai mã xác minh.
 - Không tự mở theo thời gian hoặc khi đặt lại mật khẩu. Mở khóa (`DISABLED` → `ACTIVE`) đưa bộ đếm về 0; đăng nhập thành công cũng đưa bộ đếm về 0.
 - Nhân viên/QTV mở khóa tài khoản khách; chỉ QTV mở khóa tài khoản nội bộ.
@@ -292,6 +295,7 @@ Mã tự sinh theo định dạng DS-{chữ và số}, phần chữ và số có
 - **Gửi lại:** sớm nhất sau 60 giây và vô hiệu mã cũ cùng mục đích. Trong cửa sổ 1 giờ tính lùi từ thời điểm yêu cầu: tối đa 5 lần gửi cho mỗi email và mục đích; tối đa 30 yêu cầu gửi mã cho mỗi nguồn truy cập. Vượt giới hạn: trả yêu cầu thử lại sau, không khóa tài khoản đăng nhập.
 - Đặt nhanh chỉ lưu đơn và tiêu thụ mã trong cùng giao dịch; lỗi lưu thì không tiêu thụ mã. Đặt lại mật khẩu không tự mở tài khoản `DISABLED`.
 - Gửi và tra cứu mã công khai không trả hồ sơ cũ và không tiết lộ tài khoản có tồn tại. Gửi email lỗi thì không tạo đơn hay tài khoản và không báo đã gửi thành công.
+- **Liên kết thiết lập mật khẩu:** gửi khi nhân viên tạo tài khoản khách (BR-11). Mã ngẫu nhiên 256 bit, chỉ lưu dạng băm, hết hạn sau 24 giờ, dùng một lần, gắn với email và mục đích thiết lập mật khẩu, không dùng chéo; nhập sai không tăng bộ đếm sai mã. Khách tự yêu cầu gửi lại: mã mới thay mã cũ; sớm nhất sau 60 giây và tối đa 5 lần trong 1 giờ cho mỗi email, vượt giới hạn thì trả yêu cầu thử lại sau. Phản hồi gửi lại luôn như nhau, không tiết lộ tài khoản có tồn tại. Mật khẩu mới theo quy tắc Mật khẩu ở trên; thành công thì tài khoản chuyển `ACTIVE`. Gửi email lỗi thì không tạo tài khoản và không báo đã gửi thành công.
 
 #### BR-27 Phân quyền và quản trị tài khoản
 
@@ -381,8 +385,8 @@ Mỗi yêu cầu nêu việc hệ thống phải làm; điều kiện chi tiết
 | --- | --- | --- |
 | KH-01 | Khách đăng ký tài khoản bằng họ tên, số điện thoại, email và mật khẩu (BR-26). Email là tên đăng nhập và không trùng tài khoản khác. Nếu đã có hồ sơ khách vãng lai cùng email thì liên kết tài khoản mới với hồ sơ đó (BR-11). | US-1 |
 | KH-02 | Gửi mã xác minh email đăng ký; xử lý hết hạn, gửi lại, nhập sai theo BR-26. Chỉ tạo tài khoản và liên kết hồ sơ sau khi xác minh thành công. | US-1 |
-| KH-03 | Đăng nhập bằng email và mật khẩu. Tài khoản `DISABLED` hoặc đã xóa không đăng nhập được (BR-12). | US-1 |
-| KH-04 | Quên mật khẩu: xác minh email rồi đặt mật khẩu mới (BR-26); không tự mở tài khoản `DISABLED`. | US-1 |
+| KH-03 | Đăng nhập bằng email và mật khẩu. Tài khoản `DISABLED`, `PENDING_ACTIVATION` hoặc đã xóa không đăng nhập được (BR-12). | US-1 |
+| KH-04 | Quên mật khẩu: xác minh email rồi đặt mật khẩu mới (BR-26); không tự mở tài khoản `DISABLED` và không áp dụng cho tài khoản `PENDING_ACTIVATION`. | US-1 |
 | KH-05 | Hiển thị danh sách sân gồm tên, mô tả, trạng thái, không yêu cầu đăng nhập; không hiển thị sân Đã xóa. | US-2 |
 | KH-06 | Hiển thị lưới theo ngày, mỗi slot 30 phút trong giờ mở cửa. Chờ xác nhận, Đã xác nhận, Hoàn thành giữ chỗ; Đã hủy không giữ chỗ. Slot trống màu xanh và có nhãn; slot bận hoặc sân/lịch không khả dụng được phân biệt bằng nhãn, không chỉ bằng màu. Không hiển thị sân Đã xóa hay thông tin cá nhân người đặt (BR-28). | US-2 |
 | KH-07 | Hiển thị đơn giá theo khung giờ của từng sân. | US-2 |
@@ -396,6 +400,7 @@ Mỗi yêu cầu nêu việc hệ thống phải làm; điều kiện chi tiết
 | KH-15 | Khách thành viên xem thông tin cá nhân và chỉ tự cập nhật họ tên, số điện thoại. Email chỉ xem, không đổi (BR-18). | US-8 |
 | KH-16 | Cung cấp khung trò chuyện với trợ lý AI, dùng được khi chưa đăng nhập. | US-9 |
 | KH-17 | Trợ lý AI tư vấn sân và dịch vụ, hướng dẫn đặt sân, gợi ý sân/giờ theo dữ liệu công khai và giải đáp câu hỏi thường gặp; không thực hiện thao tác nghiệp vụ hay truy cập dữ liệu cá nhân (BR-28). | US-9 |
+| KH-18 | Khách có tài khoản do nhân viên tạo đặt mật khẩu qua liên kết trong email (hiệu lực 24 giờ, dùng một lần). Liên kết hết hạn hoặc đã bị thay: khách tự yêu cầu gửi liên kết mới, hồ sơ và lịch sử đặt sân giữ nguyên (BR-11, BR-26). | US-15 |
 
 ### 4.2 Chức năng nhân viên
 
@@ -412,7 +417,7 @@ Mỗi yêu cầu nêu việc hệ thống phải làm; điều kiện chi tiết
 | NV-09 | Cập nhật trạng thái sân chưa xóa: Hoạt động (`ACTIVE`), Bảo trì (`MAINTENANCE`), Đóng (`CLOSED`). Đã xóa (`DELETED`) chỉ đặt qua chức năng xóa sân của QTV (QT-04). Sân không Hoạt động không nhận đặt mới, đổi lịch vào sân hay xác nhận thông thường. Chuyển Bảo trì/Đóng bị từ chối khi còn đơn chưa xử lý (BR-16). | US-14 |
 | NV-10 | Xem danh sách khách hàng; tìm theo họ tên, số điện thoại, email. | US-15 |
 | NV-11 | Xem và cập nhật thông tin khách hàng; xem các đặt sân của khách. Không đổi email (BR-18). | US-15 |
-| NV-12 | Tạo tài khoản khách hàng: dùng lại hồ sơ chưa liên kết nếu email đã có, nếu chưa có thì tạo hồ sơ mới (BR-11). | US-15 |
+| NV-12 | Tạo tài khoản khách hàng: dùng lại hồ sơ chưa liên kết nếu email đã có, nếu chưa có thì tạo hồ sơ mới; tài khoản ở trạng thái Chờ kích hoạt và hệ thống gửi liên kết thiết lập mật khẩu đến email khách (BR-11, BR-26). | US-15 |
 | NV-13 | Quản lý tài khoản khách hàng: xem, cập nhật thông tin, khóa, mở khóa (BR-12). Không đổi email (BR-18). Không quản lý tài khoản nội bộ hay phân quyền. | US-15 |
 | NV-14 | Hệ thống tự lập hóa đơn theo BR-08. Hóa đơn gồm mã, mã đặt sân, tổng tiền, trạng thái thanh toán, nhân viên lập (có thể trống khi khách tự đổi lịch), thời điểm lập, ghi chú; khi Đã thanh toán lưu thêm số tiền, thời điểm thực thu, phương thức, người xác nhận. | US-16 |
 | NV-15 | Xem danh sách hóa đơn có phân trang; lọc theo trạng thái (`UNPAID`, `PAID`, `CANCELLED`, `REFUNDED`), tìm theo mã. Xem chi tiết: hóa đơn tiền nhiệm/thay thế, chứng cứ thu/hoàn/hủy, lý do, tác nhân, thời điểm. Hóa đơn được điều chỉnh cùng việc đổi/hủy đơn (BR-22, BR-23). Đơn Đã xác nhận hoặc Hoàn thành luôn có đúng một hóa đơn hợp lệ; đơn Chờ xác nhận chưa có hóa đơn. | US-16 |
@@ -453,7 +458,7 @@ Bảng dưới liệt kê dữ liệu hệ thống phải lưu. Cấu trúc bả
 
 | Dữ liệu | Thông tin lưu trữ |
 | --- | --- |
-| Tài khoản | Mã tài khoản, email đăng nhập chuẩn hóa (duy nhất), mật khẩu dạng băm, loại (Khách hàng, Nhân viên), trạng thái (`ACTIVE`, `DISABLED`), số lần đăng nhập sai liên tiếp. |
+| Tài khoản | Mã tài khoản, email đăng nhập chuẩn hóa (duy nhất), mật khẩu dạng băm, loại (Khách hàng, Nhân viên), trạng thái (`ACTIVE`, `DISABLED`, `PENDING_ACTIVATION`), số lần đăng nhập sai liên tiếp. |
 | Nhân viên | Họ tên, số điện thoại, email, quyền quản trị, tài khoản liên kết. |
 | Khách hàng | Họ tên, số điện thoại, email (duy nhất), tài khoản liên kết (có thể trống; đặt nhanh có thể dùng lại hồ sơ đã liên kết tài khoản, BR-10). |
 | Mã xác minh | Email chuẩn hóa, mục đích, mã băm, số lần sai, đã dùng chưa, thời điểm hết hạn. |
@@ -471,7 +476,7 @@ Bảng dưới liệt kê dữ liệu hệ thống phải lưu. Cấu trúc bả
 
 | Mã | Nhóm | Yêu cầu |
 | --- | --- | --- |
-| NFR-01 | Bảo mật | Mật khẩu và mã xác minh chỉ lưu dạng băm, không lưu bản rõ. |
+| NFR-01 | Bảo mật | Mật khẩu, mã xác minh và liên kết thiết lập mật khẩu chỉ lưu dạng băm, không lưu bản rõ. |
 | NFR-02 | Bảo mật | Quyền được kiểm tra tại máy chủ theo mục 2.2, không chỉ dựa vào việc ẩn chức năng trên giao diện. Mọi API đọc/sửa dữ liệu khách kiểm tra chủ sở hữu; mọi yêu cầu cần đăng nhập kiểm tra tài khoản còn tồn tại, `ACTIVE` và quyền hiện tại (BR-12, BR-27). Không ghi bí mật vào log; không dùng AI để vượt quyền. |
 | NFR-03 | Toàn vẹn dữ liệu | Chống trùng lịch (BR-02) được bảo đảm ở tầng cơ sở dữ liệu, kể cả khi nhiều người đặt cùng một sân tại cùng thời điểm. |
 | NFR-04 | Toàn vẹn dữ liệu | Không xóa vật lý dữ liệu giao dịch và sân; xóa mềm sân giải phóng tên (BR-15, BR-19). |
@@ -493,3 +498,4 @@ Bảng dưới liệt kê dữ liệu hệ thống phải lưu. Cấu trúc bả
 | 1.7 | Bỏ trường lý do khỏi nhật ký. |
 | 1.8 | Đổi lịch có hiệu lực ngay (báo giá, chống xung đột, gửi lặp); thu/hoàn và hóa đơn thay thế; chốt từ giờ kết thúc; email bền vững; trạng thái dự kiến khi hủy; thời điểm thu/hoàn UTC không dung sai. |
 | 2.0 · 28/10/2026 | Viết lại để dễ đọc, không đổi nghiệp vụ: tách quy tắc dài thành điều khoản ngắn và nhóm theo chủ đề; định nghĩa quy tắc xử lý chung một lần (BR-21); gộp yêu cầu chức năng trùng lặp (KH 23→17, NV 24→18, QT 21→20) và đánh số lại KH/NV/QT/NFR; chuyển chi tiết thiết kế (tên trường, cách lưu) sang `database.md`. |
+| 2.1 · 30/10/2026 | Thêm trạng thái `PENDING_ACTIVATION` và liên kết thiết lập mật khẩu 24 giờ cho tài khoản khách do nhân viên tạo (BR-11, BR-12, BR-26, KH-03, KH-04, KH-18, NV-12, NFR-01). |

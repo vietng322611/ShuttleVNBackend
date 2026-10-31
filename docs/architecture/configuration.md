@@ -26,3 +26,10 @@ Secret keys:
 Only selected email provider needs credentials. Choose provider and SMTP endpoint
 in appsettings, or override settings using environment variables such as
 `EmailService__Provider=Smtp`.
+
+Account setup link (non-secret) is configured under `AccountSetup`:
+
+- `AccountSetup:FrontendBaseUrl` — absolute `http(s)` origin of the frontend used in the password setup email. Empty in `appsettings.json`; `http://localhost:3000` in `appsettings.Development.json`. Set `AccountSetup__FrontendBaseUrl` in every deployed environment.
+- `AccountSetup:SetPasswordPath` — frontend route, default `/set-password`. The link is `{FrontendBaseUrl}{SetPasswordPath}?email=…&token=…`.
+
+An invalid or empty value is reported when the first setup email is sent; the create/resend request fails and rolls back.

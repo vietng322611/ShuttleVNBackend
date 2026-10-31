@@ -1,6 +1,6 @@
 # Thiết kế dữ liệu — Hệ thống đặt sân cầu lông
 
-**Phiên bản 2.0 · 28/10/2026**
+**Phiên bản 2.1 · 30/10/2026**
 
 Căn cứ: SRS 2.0 và Use Case 2.0. Tài liệu này mô tả cấu trúc dữ liệu; quy tắc nghiệp vụ (BR-xx) nằm trong SRS và chỉ được dẫn chiếu ở đây, không nhắc lại.
 
@@ -46,14 +46,14 @@ Quy tắc áp dụng: BR-10, BR-11, BR-12, BR-15, BR-18, BR-26, BR-27 (SRS mục
 | --- | --- | --- |
 | accountId | uuid | PK |
 | loginEmail | string | Email chuẩn hóa, UNIQUE, không đổi |
-| passwordHash | string | Chỉ lưu băm |
+| passwordHash | string | Chỉ lưu băm; rỗng khi `PENDING_ACTIVATION`; không ghi vào Audit |
 | accountType | Enum[AccountType] | `CUSTOMER` hoặc `EMPLOYEE`; không đổi sau khi tạo |
-| status | Enum[AccountStatus] | `ACTIVE` hoặc `DISABLED` |
+| status | Enum[AccountStatus] | `ACTIVE`, `DISABLED` hoặc `PENDING_ACTIVATION` |
 | failedLoginAttempts | int | 0–5; sai mật khẩu liên tiếp, không gộp sai mã xác minh |
 | createdAt | DateTime UTC | |
 | updatedAt | DateTime UTC | |
 
-Sai mật khẩu 5 lần hoặc khóa thủ công đều chuyển `DISABLED`. Mở khóa chuyển `ACTIVE` và đưa bộ đếm về 0. Không có bảng Session: mỗi yêu cầu cần đăng nhập kiểm tra tài khoản tồn tại, `ACTIVE` và quyền hiện tại phía máy chủ.
+Tài khoản khách do nhân viên tạo bắt đầu ở `PENDING_ACTIVATION` với `passwordHash` rỗng và chuyển `ACTIVE` khi đặt mật khẩu thành công; trạng thái này không đăng nhập, không khóa/mở khóa, không tính `failedLoginAttempts`. Sai mật khẩu 5 lần hoặc khóa thủ công đều chuyển `DISABLED`. Mở khóa chuyển `ACTIVE` và đưa bộ đếm về 0. Không có bảng Session: mỗi yêu cầu cần đăng nhập kiểm tra tài khoản tồn tại, `ACTIVE` và quyền hiện tại phía máy chủ.
 
 **Employee** — Hồ sơ nhân viên/QTV
 
@@ -96,6 +96,7 @@ Sai mật khẩu 5 lần hoặc khóa thủ công đều chuyển `DISABLED`. M�
 - Mỗi `(email, type)` giữ một mã. Gửi lại thay mã cũ, đặt `attempt = 0` và `isUsed = false`. Vô hiệu mã bằng cách đặt `expiresAt` về thời điểm hiện tại.
 - Chỉ nhận mã đúng, còn hạn, chưa dùng và `attempt < 5`. Khóa bản ghi khi kiểm tra và tiêu thụ; lưu nghiệp vụ và đánh dấu `isUsed` cùng giao dịch, lỗi thì hoàn tác.
 - Giới hạn gửi (BR-26) và ngữ cảnh xác minh đặt nhanh lưu tạm trong cache phía máy chủ, không thêm bảng lịch sử gửi. Bộ đếm gửi giữ đủ cửa sổ 1 giờ, độc lập với mã hiện tại. Ngữ cảnh gắn email, mục đích, mã hiện tại và nội dung đặt; đổi nội dung phải xác minh lại. Gửi lỗi không kích hoạt mã mới hay báo thành công.
+- Mục đích `SET_PASSWORD`: `codeHash` là SHA-256 (Base64) của mã ngẫu nhiên 256 bit, `expiresAt` = lúc gửi + 24 giờ; nhập sai không tăng `attempt`; tiêu thụ bằng một câu lệnh cập nhật có điều kiện (`codeHash`, `isUsed = false`, `expiresAt` lớn hơn thời điểm máy chủ) trong cùng giao dịch với việc đổi mật khẩu. Giới hạn gửi lại theo email (60 giây; 5 lần/giờ) lưu trong bộ nhớ máy chủ, không thêm bảng.
 
 ### 2.2 Xóa tài khoản
 
@@ -134,9 +135,9 @@ ALTER TABLE "VerificationCode" ADD CONSTRAINT "PK_VerificationCode"
 
 | Enum | Giá trị |
 | --- | --- |
-| AccountStatus | `ACTIVE`, `DISABLED` |
+| AccountStatus | `ACTIVE`, `DISABLED`, `PENDING_ACTIVATION` |
 | AccountType | `CUSTOMER`, `EMPLOYEE` |
-| CodeType | `VERIFY_EMAIL` (đăng ký), `RESET_PASSWORD`, `QUICK_BOOKING` |
+| CodeType | `VERIFY_EMAIL` (đăng ký), `RESET_PASSWORD`, `QUICK_BOOKING`, `SET_PASSWORD` |
 
 `CodeType` giữ các giá trị số cũ; thêm mục đích mới ở cuối enum.
 
@@ -429,7 +430,7 @@ Nguồn: BR-14, BR-15, UC-40, NFR-05.
 | newValue | JsonB, NULL | Giá trị sau, đã loại bí mật |
 | createdAt | DateTime UTC | |
 
-- CHECK tác nhân giống `BookingStatusHistory`. `oldValue`/`newValue`/lỗi không chứa mật khẩu, mã xác minh, mã phiên hay giá trị băm của chúng; với `UserAccount` và `VerificationCode` chỉ lấy các trường được phép.
+- CHECK tác nhân giống `BookingStatusHistory`. `oldValue`/`newValue`/lỗi không chứa mật khẩu, mã xác minh, mã phiên hay giá trị băm của chúng; với `UserAccount` và `VerificationCode` chỉ lấy các trường được phép. Thuộc tính `passwordHash` không được ghi vào Audit.
 - Hệ thống tự tạo Audit trong giao dịch nghiệp vụ. `actorType/employeeId/customerId` ghi người thực hiện nghiệp vụ; việc hệ thống ghi log không đổi tác nhân thành `SYSTEM`.
 - Không có trường lý do và không có API tạo hoặc sửa Audit trực tiếp. Bản ghi bất biến với mọi người dùng, kể cả nhân viên và QTV.
 - Audit bao phủ sân, lịch, giá, hồ sơ khách, hồ sơ và tài khoản nội bộ, đặt sân, hóa đơn và mọi thao tác nêu ở BR-14. Không audit chính bảng Audit. Dùng quyền cơ sở dữ liệu hoặc trigger để chặn UPDATE/DELETE trên `Audit` và `BookingStatusHistory` bởi tài khoản ứng dụng.
@@ -571,7 +572,7 @@ Chỉ mục không đổi chức năng hay ràng buộc nghiệp vụ. Danh sác
 | UC-14, UC-15, UC-17: chờ xác nhận, xác nhận (lập hóa đơn), lịch theo ngày | `Booking`, snapshot giá, `Invoice`, `InvoiceDailyCounter`, lịch sử, Audit | BR-06, BR-08, BR-09, BR-20 |
 | UC-20, UC-25, UC-26: hoàn tiền, xem hóa đơn, thu tiền | `Invoice` (dấu vết thu/hủy/hoàn, chuỗi `replacesInvoiceId`), Audit, `IdempotencyRequest` | BR-09, BR-21–BR-23 |
 | UC-21, UC-28–UC-32: trạng thái sân; thêm, sửa, xóa sân; giờ mở; giá | `BadmintonCourt`, `CourtSchedule`, `PricingRule`, Audit | BR-01, BR-03, BR-16, BR-19, BR-25 |
-| UC-22–UC-24, UC-27: hồ sơ khách, tạo tài khoản khách, khóa/mở khóa/xóa, tra cứu | `Customer`, `UserAccount`, `VerificationCode`, `Booking`, Audit | BR-10–BR-12, BR-15, BR-18, BR-26, BR-27 |
+| UC-22–UC-24, UC-27, UC-42: hồ sơ khách, tạo tài khoản khách, khóa/mở khóa/xóa, tra cứu, thiết lập mật khẩu | `Customer`, `UserAccount`, `VerificationCode`, `Booking`, Audit | BR-10–BR-12, BR-15, BR-18, BR-26, BR-27 |
 | UC-33–UC-36: nhân viên, tài khoản nội bộ, quyền, xóa tài khoản | `Employee`, `UserAccount`, `VerificationCode`, Audit | BR-11, BR-15, BR-26, BR-27 |
 | UC-37–UC-40: đặt sân toàn hệ thống, thống kê, nhật ký | `Booking`, lịch sử, `Invoice`, Audit | BR-14, BR-17, BR-25 |
 | UC-41: chốt từ giờ kết thúc | `Booking`, hóa đơn hợp lệ, lịch sử `SYSTEM`, Audit, `Notification` | BR-17, BR-21, NFR-08 |
@@ -584,3 +585,4 @@ Chỉ mục không đổi chức năng hay ràng buộc nghiệp vụ. Danh sác
 | 1.7 | Bỏ trường lý do khỏi Audit. |
 | 1.8 · 28/10/2026 | Đồng bộ SRS 1.8: `PaidAmount` và backfill đã duyệt; `REFUNDED`; người lập `NULL`; hóa đơn tiền nhiệm; `ExpectedState`; thời điểm UTC nghiêm ngặt; chốt giờ kết thúc, lịch :01/:31. |
 | 2.0 · 28/10/2026 | Viết lại, không đổi thiết kế: bỏ các đoạn nhắc lại quy tắc nghiệp vụ (chỉ dẫn chiếu BR trong SRS); gom chi tiết thiết kế từ SRS về đây; rút gọn mục 7; cập nhật mã UC/NFR theo Use Case 2.0 và SRS 2.0. |
+| 2.1 · 30/10/2026 | Thêm `PENDING_ACTIVATION`, `SET_PASSWORD`; liên kết thiết lập mật khẩu 24 giờ; `passwordHash` không vào Audit. Không đổi cấu trúc bảng/cột. |

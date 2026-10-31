@@ -1,6 +1,6 @@
 # Mô hình Usecase
 
-**Hệ thống đặt sân cầu lông** · Phiên bản 2.0 · 28/10/2026
+**Hệ thống đặt sân cầu lông** · Phiên bản 2.1 · 30/10/2026
 
 **Sinh viên thực hiện:**
 
@@ -19,6 +19,7 @@
 | 10/10/2026 | 1.5 | Đồng bộ SRS 1.7: bỏ trường lý do khỏi nhật ký | Nguyễn Bảo Việt, Đinh Nhật Khôi |
 | 28/10/2026 | 1.6 | Đồng bộ SRS 1.8: đổi lịch ngay, hóa đơn/thu/hoàn tiền, chốt giờ kết thúc, email bền vững | Nguyễn Bảo Việt, Đinh Nhật Khôi |
 | 28/10/2026 | 2.0 | Viết lại theo SRS 2.0: luồng chính chỉ gồm đường thành công; quy tắc dùng chung chuyển lên đầu mục 4; gộp use-case Lập hóa đơn vào Xác nhận đặt sân, bỏ use-case Ghi nhận lượt sử dụng và mã đã loại trước đó, đánh số lại liền mạch còn 41 use-case; sửa mâu thuẫn email ở UC cập nhật nhân viên | Nguyễn Bảo Việt, Đinh Nhật Khôi |
+| 30/10/2026 | 2.1 | Đồng bộ SRS 2.1: tài khoản khách do nhân viên tạo ở trạng thái Chờ kích hoạt; thêm UC-42 Thiết lập mật khẩu; bổ sung ngoại lệ UC-03, UC-04, UC-24 | Nguyễn Bảo Việt, Đinh Nhật Khôi |
 
 ## Mục lục
 
@@ -30,6 +31,7 @@
    - 4.14 – 4.27: Phân hệ nhân viên (UC-14 – UC-27)
    - 4.28 – 4.40: Phân hệ quản trị viên (UC-28 – UC-40)
    - 4.41: Chốt đơn từ giờ kết thúc, do hệ thống tự chạy hoặc nhân viên kích hoạt (UC-41)
+   - 4.42: Thiết lập mật khẩu qua liên kết do hệ thống gửi khi nhân viên tạo tài khoản (UC-42)
 
 ---
 
@@ -59,9 +61,10 @@ flowchart LR
         UC11(["UC-11 Xem lịch sử đặt sân"])
         UC12(["UC-12 Xem và cập nhật hồ sơ cá nhân"])
         UC13(["UC-13 Trò chuyện với trợ lý AI"])
+        UC42(["UC-42 Thiết lập mật khẩu"])
     end
 
-    KVL --- UC01 & UC05 & UC06 & UC08 & UC13
+    KVL --- UC01 & UC05 & UC06 & UC08 & UC13 & UC42
     KTV --- UC03 & UC04 & UC05 & UC06 & UC07 & UC09 & UC10 & UC11 & UC12 & UC13
     NV --- UC03 & UC05 & UC06 & UC09 & UC10
 
@@ -201,6 +204,7 @@ flowchart LR
 | 39 | UC-39 Thống kê đặt sân | QTV | Lượt, giờ đặt và lượt, giờ Hoàn thành. |
 | 40 | UC-40 Xem nhật ký hoạt động | QTV | Xem và lọc nhật ký chỉ đọc. |
 | 41 | UC-41 Chốt đơn từ giờ kết thúc | Hệ thống, Nhân viên | Tự chốt đơn khi thời điểm máy chủ ≥ giờ kết thúc; nhân viên yêu cầu Hoàn thành chỉ kích hoạt chốt theo BR-17. |
+| 42 | UC-42 Thiết lập mật khẩu | Khách vãng lai | Đặt mật khẩu qua liên kết do hệ thống gửi khi nhân viên tạo tài khoản; yêu cầu gửi lại liên kết. |
 
 Ghi chú: yêu cầu NV-18 (hiển thị số hotline) chỉ là thông tin tĩnh trên hệ thống, không lập use-case riêng; được nêu trong UC-09. Thao tác "Hoàn thành thủ công" không tồn tại: yêu cầu Hoàn thành của nhân viên (NV-05) được xử lý trong UC-41 và chỉ kích hoạt việc chốt theo BR-17.
 
@@ -289,7 +293,7 @@ Mỗi use-case được đặc tả đủ các mục của template. Mục khôn
 | Tần suất sử dụng | Không |
 | Luồng chính | 1. Người dùng nhập email, mật khẩu.<br>2. Hệ thống kiểm tra tài khoản Hoạt động và mật khẩu.<br>3. Hệ thống cấp phiên theo quyền của tài khoản. |
 | Luồng thay thế | Không |
-| Ngoại lệ | E1. Sai mật khẩu: tăng bộ đếm, báo lỗi; lần sai thứ 5 khóa tài khoản không thời hạn.<br>E2. Tài khoản bị khóa (DISABLED) hoặc đã xóa: từ chối.<br>E3. Tài khoản không có quyền quản trị vào khu vực quản trị: từ chối truy cập. |
+| Ngoại lệ | E1. Sai mật khẩu: tăng bộ đếm, báo lỗi; lần sai thứ 5 khóa tài khoản không thời hạn.<br>E2. Tài khoản bị khóa (DISABLED) hoặc đã xóa: từ chối.<br>E3. Tài khoản không có quyền quản trị vào khu vực quản trị: từ chối truy cập.<br>E4. Tài khoản Chờ kích hoạt (PENDING_ACTIVATION): từ chối, không tăng bộ đếm sai; hướng dẫn dùng liên kết thiết lập mật khẩu (UC-42). |
 | Includes | Không |
 | Extends | Không |
 | Yêu cầu đặc biệt | Khóa không tự mở theo thời gian; chỉ mở bằng UC-24. Nhân viên không có chức năng tự đăng ký. |
@@ -314,7 +318,7 @@ Mỗi use-case được đặc tả đủ các mục của template. Mục khôn
 | Tần suất sử dụng | Không |
 | Luồng chính | 1. Khách nhập email.<br>2. Hệ thống thực hiện UC-02 (mục đích đặt lại mật khẩu).<br>3. Khách nhập mật khẩu mới.<br>4. Hệ thống lưu mật khẩu mới dạng băm và tiêu thụ mã xác minh. |
 | Luồng thay thế | Không |
-| Ngoại lệ | E1. Xác minh email thất bại: xử lý theo UC-02.<br>E2. Mật khẩu ngoài 8–128 ký tự: từ chối. |
+| Ngoại lệ | E1. Xác minh email thất bại: xử lý theo UC-02.<br>E2. Mật khẩu ngoài 8–128 ký tự: từ chối.<br>E3. Tài khoản Chờ kích hoạt: từ chối; dùng UC-42. |
 | Includes | UC-02 |
 | Extends | Không |
 | Yêu cầu đặc biệt | Không tiết lộ tài khoản có tồn tại; không tự mở tài khoản bị khóa (DISABLED). |
@@ -782,19 +786,19 @@ Mỗi use-case được đặc tả đủ các mục của template. Mục khôn
 | Ngày tạo | 09/10/2026 |
 | Ngày cập nhật gần nhất | 28/10/2026 |
 | Actor | Nhân viên |
-| Mô tả | Nhân viên tạo tài khoản cho khách sau khi xác minh thông tin khách. |
+| Mô tả | Nhân viên tạo tài khoản cho khách sau khi xác minh thông tin khách; tài khoản ở trạng thái Chờ kích hoạt cho đến khi khách đặt mật khẩu (UC-42). |
 | Tiền điều kiện | Email chưa là email đăng nhập của tài khoản nào; hồ sơ cùng email (nếu có) chưa liên kết tài khoản. |
-| Hậu điều kiện | Có tài khoản khách liên kết đúng một hồ sơ Khách hàng. |
+| Hậu điều kiện | Có tài khoản khách Chờ kích hoạt liên kết đúng một hồ sơ Khách hàng; email thiết lập mật khẩu đã gửi. |
 | Độ ưu tiên | Không |
 | Tần suất sử dụng | Không |
-| Luồng chính | 1. Nhân viên nhập thông tin khách (họ tên, số điện thoại, email) và thông tin tài khoản.<br>2. Hệ thống kiểm tra dữ liệu.<br>3. Hệ thống tìm hồ sơ theo email: có và chưa liên kết thì dùng lại, chưa có thì tạo hồ sơ mới.<br>4. Hệ thống tạo tài khoản và liên kết hồ sơ. |
+| Luồng chính | 1. Nhân viên nhập thông tin khách (họ tên, số điện thoại, email).<br>2. Hệ thống kiểm tra dữ liệu.<br>3. Hệ thống tìm hồ sơ theo email: có và chưa liên kết thì dùng lại, chưa có thì tạo hồ sơ mới.<br>4. Hệ thống tạo tài khoản Chờ kích hoạt, liên kết hồ sơ và gửi liên kết thiết lập mật khẩu hiệu lực 24 giờ đến email khách. |
 | Luồng thay thế | Không |
-| Ngoại lệ | E1. Dữ liệu không hợp lệ: nêu trường lỗi.<br>E2. Email đã là email đăng nhập, hoặc hồ sơ đã có tài khoản: từ chối.<br>E3. Hai yêu cầu tạo đồng thời xung đột: yêu cầu thua bị hoàn tác, không để lại tài khoản hay hồ sơ mồ côi. |
+| Ngoại lệ | E1. Dữ liệu không hợp lệ: nêu trường lỗi.<br>E2. Email đã là email đăng nhập, hoặc hồ sơ đã có tài khoản: từ chối.<br>E3. Hai yêu cầu tạo đồng thời xung đột: yêu cầu thua bị hoàn tác, không để lại tài khoản hay hồ sơ mồ côi.<br>E4. Gửi email lỗi: hoàn tác, không tạo tài khoản, không báo thành công. |
 | Includes | Không |
 | Extends | Không |
 | Yêu cầu đặc biệt | Nhân viên chỉ tạo tài khoản khách; tài khoản nội bộ do QTV tạo (UC-33). |
 | Giả định | Không |
-| Ghi chú | FR: NV-12, QT-08; BR: BR-11, BR-27. |
+| Ghi chú | FR: NV-12, QT-08, KH-18; BR: BR-11, BR-26, BR-27. |
 
 ### 4.24 Đặc tả Use-case “Khóa/Mở khóa/Xóa tài khoản”
 
@@ -814,7 +818,7 @@ Mỗi use-case được đặc tả đủ các mục của template. Mục khôn
 | Tần suất sử dụng | Không |
 | Luồng chính | 1. Người thực hiện chọn tài khoản và thao tác Khóa.<br>2. Hệ thống kiểm tra phạm vi quyền và bảo vệ QTV ACTIVE cuối cùng.<br>3. Hệ thống chuyển tài khoản sang DISABLED.<br>4. Hệ thống trả kết quả. |
 | Luồng thay thế | A1. (bước 1) Thao tác Mở khóa trên tài khoản DISABLED: chuyển ACTIVE và đưa bộ đếm sai về 0.<br>A2. (bước 1) Thao tác Xóa (chỉ QTV): vô hiệu mã xác minh liên quan, xóa tài khoản và bỏ liên kết hồ sơ trong cùng giao dịch. |
-| Ngoại lệ | E1. Nhân viên thao tác tài khoản nội bộ hoặc yêu cầu xóa tài khoản: từ chối.<br>E2. Khóa hoặc xóa làm mất QTV ACTIVE cuối cùng: từ chối.<br>E3. Tài khoản đã xóa: không có thao tác mở khóa để khôi phục. |
+| Ngoại lệ | E1. Nhân viên thao tác tài khoản nội bộ hoặc yêu cầu xóa tài khoản: từ chối.<br>E2. Khóa hoặc xóa làm mất QTV ACTIVE cuối cùng: từ chối.<br>E3. Tài khoản đã xóa: không có thao tác mở khóa để khôi phục.<br>E4. Khóa/Mở khóa tài khoản Chờ kích hoạt: từ chối. |
 | Includes | Không |
 | Extends | Không |
 | Yêu cầu đặc biệt | Khóa tự động ở lần sai thứ 5 vẫn áp dụng cho QTV cuối. Khi không còn QTV đăng nhập được, phục hồi bằng quy trình vận hành ngoài chức năng này (người có thẩm quyền, xác minh danh tính, lưu dấu vết). |
@@ -1245,3 +1249,28 @@ Mỗi use-case được đặc tả đủ các mục của template. Mục khôn
 | Yêu cầu đặc biệt | Đúng giờ kết thúc đã đủ điều kiện chốt. Thời điểm quyết định lấy từ máy chủ, không từ thời điểm nhấn nút. Không thu, xác nhận, đổi để cứu đơn phải hủy. Hoàn thành tự động không chứng minh khách có mặt. Không có thao tác Hoàn thành thủ công: yêu cầu của nhân viên chỉ kích hoạt kiểm tra và chốt theo BR-17. Lỗi gửi email không hoàn tác chốt. |
 | Giả định | Không |
 | Ghi chú | FR: NV-05; BR: BR-17, BR-21; NFR: NFR-08; Mục SRS: 3.7, 3.8. |
+
+### 4.42 Đặc tả Use-case “Thiết lập mật khẩu”
+
+| Mục | Nội dung |
+| --- | --- |
+| Mã Use Case | UC-42 |
+| Tên Use Case | Thiết lập mật khẩu |
+| Người tạo | Nguyễn Bảo Việt, Đinh Nhật Khôi |
+| Người cập nhật gần nhất | Nguyễn Bảo Việt, Đinh Nhật Khôi |
+| Ngày tạo | 30/10/2026 |
+| Ngày cập nhật gần nhất | 30/10/2026 |
+| Actor | Khách vãng lai |
+| Mô tả | Khách có tài khoản do nhân viên tạo đặt mật khẩu qua liên kết trong email để kích hoạt tài khoản; khi liên kết hết hạn thì tự yêu cầu gửi lại liên kết mới. |
+| Tiền điều kiện | Tài khoản khách ở trạng thái Chờ kích hoạt. |
+| Hậu điều kiện | Mật khẩu được lưu dạng băm, tài khoản chuyển ACTIVE, liên kết bị tiêu thụ; hồ sơ và lịch sử đặt sân giữ nguyên. |
+| Độ ưu tiên | Không |
+| Tần suất sử dụng | Không |
+| Luồng chính | 1. Khách mở liên kết trong email, nhập mật khẩu mới và xác nhận mật khẩu.<br>2. Hệ thống kiểm tra liên kết (đúng email, đúng mục đích, còn hạn, chưa dùng) và mật khẩu 8–128 ký tự.<br>3. Hệ thống lưu mật khẩu dạng băm, chuyển tài khoản sang ACTIVE và tiêu thụ liên kết trong cùng giao dịch. |
+| Luồng thay thế | A1. (bước 1) Liên kết hết hạn hoặc đã bị thay: khách yêu cầu gửi lại; hệ thống vô hiệu liên kết cũ, tạo liên kết mới hiệu lực 24 giờ và gửi đến email hồ sơ. Phản hồi luôn như nhau dù email có thuộc tài khoản Chờ kích hoạt hay không. |
+| Ngoại lệ | E1. Liên kết sai, hết hạn, đã dùng hoặc tài khoản không còn Chờ kích hoạt: từ chối, không tiết lộ lý do cụ thể.<br>E2. Mật khẩu ngoài 8–128 ký tự hoặc xác nhận không khớp: từ chối, liên kết còn hiệu lực.<br>E3. Gửi lại quá nhanh (dưới 60 giây) hoặc quá 5 lần trong 1 giờ cho một email: trả yêu cầu thử lại sau.<br>E4. Gửi email lỗi: không báo đã gửi, liên kết cũ giữ nguyên.<br>E5. Hai yêu cầu dùng cùng một liên kết đồng thời: chỉ một yêu cầu thành công. |
+| Includes | Không |
+| Extends | Không |
+| Yêu cầu đặc biệt | Liên kết chỉ lưu dạng băm, dùng một lần, hiệu lực 24 giờ, không dùng chéo mục đích. Nhập sai không tăng bộ đếm sai mã. Không tự đăng nhập sau khi đặt mật khẩu. |
+| Giả định | Không |
+| Ghi chú | FR: KH-18, NV-12; BR: BR-11, BR-12, BR-26; NFR: NFR-01, NFR-07. |
