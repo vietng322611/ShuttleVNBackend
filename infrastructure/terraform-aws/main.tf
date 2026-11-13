@@ -24,7 +24,7 @@ module "network" {
 
   project_name       = var.project_name
   availability_zone  = data.aws_availability_zones.available.names[0]
-  enable_nat_gateway = false
+  enable_nat_gateway = true
 }
 
 module "security" {
@@ -32,7 +32,7 @@ module "security" {
 
   project_name     = var.project_name
   vpc_id           = module.network.vpc_id
-  ssh_allowed_cidr = "172.16.17.32/32"
+  ssh_allowed_cidr = var.ssh_allowed_cidr
 }
 
 module "public_compute" {
