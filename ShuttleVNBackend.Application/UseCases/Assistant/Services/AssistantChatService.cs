@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using ShuttleVNBackend.Application.Common;
 using ShuttleVNBackend.Application.DTOs.Assistant;
 using ShuttleVNBackend.Application.Exceptions;
 using ShuttleVNBackend.Application.Interfaces.Assistant;
@@ -11,9 +13,12 @@ namespace ShuttleVNBackend.Application.UseCases.Assistant.Services;
 public sealed class AssistantChatService(
     IChatCompletionClient chatClient,
     IEnumerable<IAssistantTool> tools,
-    IOptions<AssistantOptions> options)
+    IOptions<AssistantOptions> options,
+    TimeProvider clock)
 {
     private static readonly JsonSerializerOptions PayloadJson = JsonSerializerOptions.Web;
+    private static readonly string[] VietnameseDayNames =
+        ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
     private readonly Dictionary<string, IAssistantTool> _tools = tools.ToDictionary(t => t.Name);
     private readonly AssistantOptions _settings = options.Value;
 
@@ -195,12 +200,23 @@ public sealed class AssistantChatService(
     {
         var messages = new List<ChatCompletionMessage>
         {
-            new("system", AssistantPrompt.System)
+            new("system", $"{AssistantPrompt.System}\n\n{BuildCurrentTimeNote()}")
         };
 
         messages.AddRange(request.Messages.Select(m =>
             new ChatCompletionMessage(m.Role.Trim().ToLowerInvariant(), m.Content.Trim())));
 
         return messages;
+    }
+
+    private string BuildCurrentTimeNote()
+    {
+        var now = VietnamTime.NowLocal(clock);
+        var dayName = VietnameseDayNames[(int)now.DayOfWeek];
+        var timestamp = now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+
+        return $"Bây giờ là {dayName}, {timestamp} (giờ Việt Nam). " +
+               "Khi gọi get_court_availability, đổi 'hôm nay', 'ngày mai', 'thứ Bảy này'… thành ngày yyyy-MM-dd theo thời điểm này. " +
+               "Chỉ gợi ý các khung giờ từ thời điểm hiện tại trở đi.";
     }
 }

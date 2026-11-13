@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ShuttleVNBackend.Application.Exceptions;
 using ShuttleVNBackend.Application.Interfaces.Assistant;
@@ -14,7 +15,8 @@ namespace ShuttleVNBackend.Infrastructure.Assistant;
 
 public sealed class OpenAiCompatibleChatClient(
     HttpClient httpClient,
-    IOptions<AssistantOptions> options) : IChatCompletionClient
+    IOptions<AssistantOptions> options,
+    ILogger<OpenAiCompatibleChatClient> logger) : IChatCompletionClient
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -55,6 +57,7 @@ public sealed class OpenAiCompatibleChatClient(
 
             if (!response.IsSuccessStatusCode)
             {
+                logger.LogWarning("Upstream AI provider returned non-success status code: {StatusCode}", (int)response.StatusCode);
                 throw new AssistantUnavailableException();
             }
 
@@ -64,6 +67,7 @@ public sealed class OpenAiCompatibleChatClient(
             exception is HttpRequestException or OperationCanceledException
             && !ct.IsCancellationRequested)
         {
+            logger.LogWarning(exception, "Upstream AI provider request failed with error: {ErrorType}", exception.GetType().Name);
             response?.Dispose();
             throw new AssistantUnavailableException();
         }

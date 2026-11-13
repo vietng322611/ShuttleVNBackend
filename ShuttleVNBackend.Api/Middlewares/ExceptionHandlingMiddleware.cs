@@ -18,6 +18,12 @@ public class ExceptionHandlingMiddleware(
         }
         catch (AppException ex)
         {
+            if (context.Response.HasStarted)
+            {
+                logger.LogWarning(ex, "Response already started, skipping error response");
+                return;
+            }
+
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = ex.StatusCode;
 
@@ -38,6 +44,12 @@ public class ExceptionHandlingMiddleware(
             SqlState: PostgresErrorCodes.ExclusionViolation or PostgresErrorCodes.UniqueViolation
         })
         {
+            if (context.Response.HasStarted)
+            {
+                logger.LogWarning(ex, "Response already started, skipping error response");
+                return;
+            }
+
             logger.LogWarning(ex, "Database constraint conflict");
 
             context.Response.ContentType = "application/json";
@@ -48,8 +60,18 @@ public class ExceptionHandlingMiddleware(
                     "The data was changed by another operation. Please reload and try again."),
                 context.RequestAborted);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogInformation("Request was cancelled by client");
+        }
         catch (Exception ex)
         {
+            if (context.Response.HasStarted)
+            {
+                logger.LogError(ex, "Unhandled exception after response already started");
+                return;
+            }
+
             logger.LogError(ex, "Unhandled exception");
 
             context.Response.ContentType = "application/json";

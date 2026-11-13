@@ -31,7 +31,7 @@ Hệ thống RESTful Web API cho nền tảng quản lý và đặt sân cầu l
   * Khóa bi quan cấp dòng (`SELECT ... FOR UPDATE`)
   * Ràng buộc loại trừ tại Database (PostgreSQL GiST `tsrange` Exclusion Constraint) triệt tiêu hoàn toàn nguy cơ trùng giờ đặt sân
 * **Email & Thông báo**: [Resend API](https://resend.com/) & SMTP (MailKit) với HTML Template Renderer và Background Notification Worker
-* **Ghi log & Tài liệu**: Serilog (Structured Logging), Swashbuckle (Swagger / OpenAPI UI)
+* **Ghi log & Tài liệu**: Serilog (Structured Logging), OpenAPI v3 JSON spec (/openapi/v1.json trong Development)
 * **Container hóa**: Docker, Docker Compose
 
 ---
@@ -56,7 +56,7 @@ ShuttleVNBackend.Core ◄───────┘
 | **`ShuttleVNBackend.Core`** | Thực thể Domain (Entities: `Booking`, `BadmintonCourt`, `Customer`, `Employee`...), Enums, Domain Invariants. Không phụ thuộc thư viện ngoài. |
 | **`ShuttleVNBackend.Application`** | Các Use Case/Services nghiệp vụ (`BookingService`, `StatisticsService`...), DTOs, Quy tắc nghiệp vụ, Hợp đồng Repository (`Interfaces`). |
 | **`ShuttleVNBackend.Infrastructure`** | Triển khai EF Core DbContext (`ShuttleVnDbContext`), Migrations, Repositories, hạ tầng Email, Idempotency và phân quyền người dùng. |
-| **`ShuttleVNBackend.Api`** | API Controllers, Middlewares (xử lý ngoại lệ toàn cục, logging), Dependency Injection, cấu hình Cookie Auth và Swagger. |
+| **`ShuttleVNBackend.Api`** | API Controllers, Middlewares (xử lý ngoại lệ toàn cục, logging), Dependency Injection, cấu hình Cookie Auth và OpenAPI. |
 
 ---
 
@@ -86,6 +86,12 @@ DefaultAdmin__Password='AdminPassword123!'
 EmailService__ApiKey='re_your_resend_api_key'
 EmailService__Smtp__Username=''
 EmailService__Smtp__Password=''
+
+# Cấu hình Trợ lý AI (OpenAI-compatible)
+Assistant__BaseUrl='https://api.openai.com/v1'
+Assistant__Model='gpt-4o-mini'
+Assistant__ApiKey='your_api_key_here'
+Assistant__ExtraBody='{}'
 ```
 
 ### 3. Cập nhật Database (Migrations)
@@ -108,7 +114,7 @@ dotnet run --project ShuttleVNBackend.Api
 
 API mặc định sẽ lắng nghe tại:
 * HTTP: `http://localhost:5062`
-* Tài liệu Swagger: `http://localhost:5062/swagger`
+* Tài liệu OpenAPI: `http://localhost:5062/openapi/v1.json` (chỉ ở môi trường Development)
 
 ---
 
@@ -138,3 +144,7 @@ Container API sẽ được map ra cổng `8080:8080` (hoặc cổng cấu hình
 4. **Tra cứu & Tìm kiếm**:
    * Quick Lookup cho nhân viên: tra cứu nhanh theo mã đơn, số điện thoại, tên khách hàng.
    * Tìm kiếm đơn đặt sân phía khách hàng.
+5. **Trợ lý ảo AI (AI Assistant)**:
+   * Endpoint tra cứu thông tin `/api/assistant/chat` và luồng thời gian thực `/api/assistant/chat/stream` (Server-Sent Events).
+   * Hỗ trợ gọi tool kiểm tra lịch trống và giá sân (`list_courts`, `get_court_availability`).
+   * Giới hạn an toàn: tối đa 20 tin nhắn, 2000 ký tự/tin nhắn, rate limit 20 request/phút/IP.
