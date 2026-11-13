@@ -1,3 +1,4 @@
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -29,7 +30,13 @@ public static class ObservabilityExtensions
 
                 if (!string.IsNullOrWhiteSpace(otlpEndpoint))
                 {
-                    tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+                    // Tempo exposes the OTLP HTTP receiver only, but the
+                    // exporter defaults to gRPC.
+                    tracing.AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpEndpoint);
+                        options.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    });
                 }
             });
 
