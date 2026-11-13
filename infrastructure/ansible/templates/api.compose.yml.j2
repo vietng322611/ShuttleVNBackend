@@ -8,5 +8,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
+    # Bind on all interfaces so both Nginx (private IP) and the local
+    # deploy health check (127.0.0.1) reach it. Reachability is gated by
+    # the security group, not by the bind address.
     ports:
-      - "{{ ansible_host }}:8080:8080"
+      - "8080:8080"
