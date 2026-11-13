@@ -1,4 +1,10 @@
-project_name        = ""
-ami_id              = ""
-ssh_public_key_path = ""
-ssh_allowed_cidr    = ""
+project_name     = "shuttlevn"
+ami_id           = "ami-xxxxxxxxxxxxxxxxx"
+ssh_allowed_cidr = "203.0.113.10/32"
+
+# Full public key line, e.g. "ssh-ed25519 AAAA... user@host".
+ssh_public_key = ""
+
+# NAT gateway costs ~$43/month. Set false to pause it when the stack is idle;
+# private hosts then lose outbound internet (no image pulls, no package installs).
+enable_nat_gateway = true

@@ -8,9 +8,16 @@ variable "ami_id" {
   description = "Pinned Ubuntu amd64 AMI ID in Singapore."
 }
 
-variable "ssh_public_key_path" {
+variable "ssh_public_key" {
   type        = string
-  description = "Path to the SSH public key file."
+  description = "Contents of the SSH public key, not a path. CI has no operator filesystem to read a path from."
+  sensitive   = true
+}
+
+variable "enable_nat_gateway" {
+  type        = bool
+  description = "NAT gateway costs ~$43/month while it exists. Off means the private host loses outbound access."
+  default     = true
 }
 
 variable "ssh_allowed_cidr" {

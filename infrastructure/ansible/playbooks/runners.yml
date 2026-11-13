@@ -76,6 +76,16 @@
         append: true
       when: runner_service_count.stdout | int == 0
 
+    - name: Allow the runner user to escalate for Ansible
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/{{ runner_user }}
+        owner: root
+        group: root
+        mode: '0440'
+        content: "{{ runner_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        validate: /usr/sbin/visudo -cf %s
+      when: runner_service_count.stdout | int == 0
+
     - name: Create the runner directory
       ansible.builtin.file:
         path: "{{ runner_dir }}"

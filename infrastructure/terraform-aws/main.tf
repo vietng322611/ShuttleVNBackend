@@ -10,9 +10,7 @@ data "aws_availability_zones" "available" {
 resource "aws_key_pair" "this" {
   key_name = "shuttlevn-ssh"
 
-  public_key = trimspace(
-    file(pathexpand(var.ssh_public_key_path))
-  )
+  public_key = trimspace(var.ssh_public_key)
 
   tags = {
     Name = "shuttlevn-ssh"
@@ -24,7 +22,7 @@ module "network" {
 
   project_name       = var.project_name
   availability_zone  = data.aws_availability_zones.available.names[0]
-  enable_nat_gateway = true
+  enable_nat_gateway = var.enable_nat_gateway
 }
 
 module "security" {

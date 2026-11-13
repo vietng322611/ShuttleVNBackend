@@ -98,6 +98,15 @@ resource "aws_vpc_security_group_ingress_rule" "public_metrics" {
   to_port                      = each.value
 }
 
+resource "aws_vpc_security_group_ingress_rule" "public_ssh_from_private" {
+  security_group_id            = aws_security_group.public.id
+  referenced_security_group_id = aws_security_group.private.id
+  description                  = "Allow Ansible SSH from private SG"
+  ip_protocol                  = "tcp"
+  from_port                    = 22
+  to_port                      = 22
+}
+
 resource "aws_vpc_security_group_egress_rule" "outbound" {
   for_each = {
     public  = aws_security_group.public.id
