@@ -82,8 +82,10 @@ ConnectionStrings__DefaultConnection='Host=localhost;Port=5432;Database=shuttlev
 # Mật khẩu khởi tạo cho tài khoản Admin mặc định
 DefaultAdmin__Password='AdminPassword123!'
 
-# Cấu hình Email Service (Resend hoặc SMTP)
+# Cấu hình Email Service (Provider: Resend hoặc Smtp, phân biệt hoa/thường)
+EmailService__Provider='Resend'
 EmailService__ApiKey='re_your_resend_api_key'
+EmailService__Smtp__Host=''
 EmailService__Smtp__Username=''
 EmailService__Smtp__Password=''
 
