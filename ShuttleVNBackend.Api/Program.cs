@@ -34,6 +34,8 @@ builder.Services
         );
     });
 
+builder.Services.AddHealthChecks();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -100,6 +102,8 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 using var scope = app.Services.CreateScope();
 
