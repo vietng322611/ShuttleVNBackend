@@ -31,7 +31,8 @@ public static class AssistantServiceRegistration
                 "Assistant:MaxTokens must be between 1 and 8000.")
             .Validate(options => options.AvailabilityHorizonDays is >= 1 and <= 365,
                 "Assistant:AvailabilityHorizonDays must be between 1 and 365.")
-            .Validate(IsJsonObject, "Assistant:ExtraBody must be a JSON object such as {\"reasoning_effort\":\"none\"}.");
+            .Validate(IsJsonObject, "Assistant:ExtraBody must be a JSON object such as {\"reasoning_effort\":\"none\"}.")
+            .ValidateOnStart();
 
         services.AddHttpClient<IChatCompletionClient, OpenAiCompatibleChatClient>();
         services.AddScoped<AssistantChatService>();

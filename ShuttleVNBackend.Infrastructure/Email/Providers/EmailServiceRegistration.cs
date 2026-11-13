@@ -22,7 +22,8 @@ public static class EmailServiceRegistration
             .Validate(options => options.Provider != "Resend" || !string.IsNullOrWhiteSpace(options.ApiKey),
                 "EmailService:ApiKey is required for Resend.")
             .Validate(HasValidSmtpSettings,
-                "SMTP requires a host, valid port, and either both credentials or neither.");
+                "SMTP requires a host, valid port, and either both credentials or neither.")
+            .ValidateOnStart();
 
         services.AddHttpClient<ResendEmailService>();
         services.AddTransient<SmtpEmailService>();
