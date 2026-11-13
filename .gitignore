@@ -58,7 +58,7 @@ env/
 # =========================
 # Ansible secrets
 # =========================
-infrastructure/ansible/group_vars/all/secrets.yml
+**/group_vars/**/secrets.yml
 
 # =========================
 # Logs

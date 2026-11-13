@@ -39,7 +39,7 @@
         owner: ubuntu
         group: ubuntu
         mode: '0644'
-        notify: Restart Prometheus
+      notify: Restart Prometheus
 
     - name: Install Grafana datasource
       ansible.builtin.copy:
@@ -48,7 +48,7 @@
         owner: ubuntu
         group: ubuntu
         mode: '0644'
-        notify: Restart Grafana
+      notify: Restart Grafana
 
     - name: Install Grafana dashboard provider
       ansible.builtin.copy:
@@ -57,7 +57,7 @@
         owner: ubuntu
         group: ubuntu
         mode: '0644'
-        notify: Restart Grafana
+      notify: Restart Grafana
 
     - name: Create Grafana dashboards directory
       ansible.builtin.file:
@@ -75,7 +75,7 @@
         group: ubuntu
         mode: '0644'
         directory_mode: '0755'
-        notify: Restart Grafana
+      notify: Restart Grafana
 
     - name: Install Grafana alert rules
       ansible.builtin.template:
@@ -84,8 +84,8 @@
         owner: '472'
         group: '472'
         mode: '0600'
-        no_log: true
-        notify: Restart Grafana
+      no_log: true
+      notify: Restart Grafana
 
     - name: Install observability Compose file
       ansible.builtin.template:

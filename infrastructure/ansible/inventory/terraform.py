@@ -14,10 +14,11 @@ try:
     servers = state["outputs"]["servers"]["value"]
     public_ip = servers["public"]["public_ip"]
     private_ip = servers["private"]["private_ip"]
+    public_private_ip = servers["public"]["private_ip"]
 except (FileNotFoundError, KeyError, TypeError) as exc:
     sys.exit(f"Chưa đọc được IP EC2 từ {state_path}: {exc}")
 
-if not public_ip or not private_ip:
+if not public_ip or not private_ip or not public_private_ip:
     sys.exit("EC2 chưa có đủ IP trong Terraform state.")
 
 print(json.dumps({
@@ -25,8 +26,8 @@ print(json.dumps({
     "private": {"hosts": ["private_ec2"]},
     "_meta": {
         "hostvars": {
-            "public_ec2": {"ansible_host": public_ip},
-            "private_ec2": {"ansible_host": private_ip},
+            "public_ec2": {"ansible_host": public_ip, "private_ip": public_private_ip},
+            "private_ec2": {"ansible_host": private_ip, "private_ip": private_ip},
         }
     },
 }))
