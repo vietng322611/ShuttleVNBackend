@@ -6,7 +6,6 @@ variable "region" {
 variable "github_repository" {
   type        = string
   description = "owner/repo allowed to assume the deploy role via OIDC."
-  default     = "vietng322611/ShuttleVNBackend"
 }
 
 variable "github_branch" {

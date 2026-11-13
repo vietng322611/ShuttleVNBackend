@@ -3,11 +3,10 @@ data "aws_caller_identity" "current" {}
 locals {
   state_bucket = "shuttlevn-tfstate-${data.aws_caller_identity.current.account_id}"
   oidc_host    = "token.actions.githubusercontent.com"
+  repo_owner   = split("/", var.github_repository)[0]
+  repo_name    = split("/", var.github_repository)[1]
 }
 
-# Remote state for the application root in ../terraform-aws. Versioning is
-# what makes a bad apply recoverable: every state write leaves the previous
-# one intact.
 resource "aws_s3_bucket" "state" {
   bucket = local.state_bucket
 
@@ -64,13 +63,7 @@ resource "aws_s3_bucket_policy" "state" {
   })
 }
 
-# GitHub-hosted runners have no long-lived keys. They exchange a short-lived
-# OIDC token for credentials, and the trust policy pins both the repository
-# and the exact refs allowed to do it.
-#
-# The provider already exists in this account (created by an earlier lab and
-# shared account-wide), so it is read, not created. Creating a second one
-# with the same URL is rejected by IAM.
+# The provider is account-wide and already exists, so it is read here.
 data "aws_iam_openid_connect_provider" "github" {
   url = "https://${local.oidc_host}"
 }
@@ -91,14 +84,15 @@ data "aws_iam_policy_document" "assume_role" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # Either a push to the deploy branch (plan) or a job that passed the
-    # GitHub Environment approval gate (apply).
+    # GitHub sub claims now carry immutable numeric ids, e.g.
+    # repo:owner@90992374/repo@1320291487:ref:refs/heads/devops, so only the
+    # id segments are wildcarded.
     condition {
       test     = "StringLike"
       variable = "${local.oidc_host}:sub"
       values = [
-        "repo:${var.github_repository}:ref:refs/heads/${var.github_branch}",
-        "repo:${var.github_repository}:environment:${var.github_environment}",
+        "repo:${local.repo_owner}@*/${local.repo_name}@*:ref:refs/heads/${var.github_branch}",
+        "repo:${local.repo_owner}@*/${local.repo_name}@*:environment:${var.github_environment}",
       ]
     }
   }
@@ -110,19 +104,15 @@ resource "aws_iam_role" "terraform" {
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
-# The root manages VPCs, subnets, SGs, key pairs, EIPs, NAT gateways and
-# EC2 instances: all EC2 API surface, nothing else.
 resource "aws_iam_role_policy_attachment" "terraform_ec2" {
   role       = aws_iam_role.terraform.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
-# State access is scoped to this bucket only. DeleteObject covers the
-# .tflock object that use_lockfile writes and removes.
 data "aws_iam_policy_document" "state" {
   statement {
     effect    = "Allow"
-    actions   = ["s3:ListBucket", "s3:GetBucketVersioning"]
+    actions   = ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetBucketVersioning"]
     resources = [aws_s3_bucket.state.arn]
   }
 
