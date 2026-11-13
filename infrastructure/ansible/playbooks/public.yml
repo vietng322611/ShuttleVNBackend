@@ -18,14 +18,6 @@
         - proxy
         - monitoring
     
-    - name: Install frontend Compose file
-      ansible.builtin.template:
-        src: ../templates/frontend.compose.yml.j2
-        dest: /opt/shuttlevn/frontend/compose.yml
-        owner: root
-        group: root
-        mode: "0644"
-
     # The GitHub runner user deploys here and writes .env and deploy.log,
     # so the directory has to be group-writable for the docker group.
     - name: Allow the docker group to deploy
@@ -35,6 +27,14 @@
         owner: ubuntu
         group: docker
         mode: '0775'
+
+    - name: Install frontend Compose file
+      ansible.builtin.template:
+        src: ../templates/frontend.compose.yml.j2
+        dest: /opt/shuttlevn/frontend/compose.yml
+        owner: root
+        group: root
+        mode: "0644"
 
     - name: Install Nginx
       ansible.builtin.apt:
