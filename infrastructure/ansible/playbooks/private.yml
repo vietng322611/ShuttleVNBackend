@@ -15,6 +15,15 @@
         - backend
         - monitoring
 
+    # The GitHub runner user deploys here and writes deploy.log, so the
+    # directory has to be group-writable for the docker group.
+    - name: Allow the docker group to deploy
+      ansible.builtin.file:
+        path: /opt/shuttlevn/backend
+        state: directory
+        group: docker
+        mode: '0775'
+
     - name: Install production API Compose file
       ansible.builtin.template:
         src: "{{ playbook_dir }}/../templates/api.compose.yml.j2"
@@ -28,6 +37,9 @@
         src: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/shuttlevn/api.env"
         dest: /opt/shuttlevn/backend/api.env
         owner: root
-        group: root
-        mode: '0600'
+        # The GitHub runner user deploys with docker compose and must read
+        # this file. docker group membership is already root-equivalent, so
+        # group-readable secrets do not widen the blast radius.
+        group: docker
+        mode: '0640'
       no_log: true

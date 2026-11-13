@@ -7,6 +7,7 @@
     - name: Install packages needed for Docker setup
       ansible.builtin.apt:
         name:
+          - acl
           - ca-certificates
           - curl
         state: present
@@ -83,9 +84,27 @@
             }
           }
       notify: Restart Docker
-  
+
+    - name: Harden SSH
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-hardening.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          PermitRootLogin no
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          X11Forwarding no
+      notify: Reload SSH
+
   handlers:
     - name: Restart Docker
       ansible.builtin.systemd_service:
         name: docker
         state: restarted
+
+    - name: Reload SSH
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: reloaded

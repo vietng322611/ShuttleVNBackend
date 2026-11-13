@@ -2,3 +2,6 @@
 infrastructure/ansible/** text eol=lf
 infrastructure/terraform-aws/** text eol=lf
 infrastructure/terraform-oci/** text eol=lf
+
+# Runner-side workflow scripts are bash and run on Linux.
+.github/workflows/** text eol=lf
