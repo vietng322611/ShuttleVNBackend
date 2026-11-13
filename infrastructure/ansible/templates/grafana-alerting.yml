@@ -47,7 +47,7 @@ groups:
               refId: A
               instant: true
               range: false
-              expr: up == 0
+              expr: up == bool 0
 
       - uid: shuttlevn-node-cpu-high
         title: Node CPU above 85%
@@ -72,7 +72,7 @@ groups:
               expr: >-
                 100 - (avg by (instance)
                 (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
-                > 85
+                > bool 85
 
       - uid: shuttlevn-root-disk-low
         title: Root filesystem below 15% free
@@ -97,7 +97,7 @@ groups:
               expr: >-
                 node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
                 / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
-                < 0.15
+                < bool 0.15
 
       - uid: shuttlevn-api-down
         title: ShuttleVN API container missing
