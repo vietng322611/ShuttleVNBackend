@@ -4,26 +4,32 @@
   become: true
 
   tasks:
-    - name: Check Grafana admin password file
-      ansible.builtin.stat:
-        path: /opt/shuttlevn/monitoring/grafana_admin_password
-      register: grafana_password_file
+    - name: Create monitoring directory
+      ansible.builtin.file:
+        path: /opt/shuttlevn/monitoring
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
 
-    - name: Require password on first setup
+    - name: Require secrets from group_vars/all/secrets.yml
       ansible.builtin.assert:
         that:
-          - grafana_password_file.stat.exists or
-            (lookup('ansible.builtin.env', 'GRAFANA_ADMIN_PASSWORD') | length > 0)
-        fail_msg: Set GRAFANA_ADMIN_PASSWORD before the first run.
+          - grafana_admin_password | length > 0
+          - alert_webhook_url | length > 0
+        fail_msg: >-
+          Fill grafana_admin_password and alert_webhook_url in
+          infrastructure/ansible/group_vars/all/secrets.yml
+          (copy secrets.yml.example, or run: ansible-vault encrypt group_vars/all/secrets.yml).
 
+    # Grafana image runs as uid 472, so secrets must be owned by it.
     - name: Create Grafana admin password file
       ansible.builtin.copy:
         dest: /opt/shuttlevn/monitoring/grafana_admin_password
-        content: "{{ lookup('ansible.builtin.env', 'GRAFANA_ADMIN_PASSWORD') }}\n"
-        owner: root
-        group: root
+        content: "{{ grafana_admin_password }}\n"
+        owner: '472'
+        group: '472'
         mode: '0600'
-      when: not grafana_password_file.stat.exists
       no_log: true
 
     - name: Install Prometheus configuration
@@ -44,6 +50,43 @@
         mode: '0644'
         notify: Restart Grafana
 
+    - name: Install Grafana dashboard provider
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../templates/grafana-dashboards.yml"
+        dest: /opt/shuttlevn/monitoring/grafana-dashboards.yml
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+        notify: Restart Grafana
+
+    - name: Create Grafana dashboards directory
+      ansible.builtin.file:
+        path: /opt/shuttlevn/monitoring/dashboards
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Install Grafana dashboards
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../templates/dashboards/"
+        dest: /opt/shuttlevn/monitoring/dashboards/
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+        directory_mode: '0755'
+        notify: Restart Grafana
+
+    - name: Install Grafana alert rules
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/grafana-alerting.yml"
+        dest: /opt/shuttlevn/monitoring/grafana-alerting.yml
+        owner: '472'
+        group: '472'
+        mode: '0600'
+        no_log: true
+        notify: Restart Grafana
+
     - name: Install observability Compose file
       ansible.builtin.template:
         src: "{{ playbook_dir }}/../templates/observability.compose.yml.j2"
@@ -59,7 +102,7 @@
           - observability.yml
         project_name: observability
         state: present
-  
+
   handlers:
     - name: Restart Prometheus
       community.docker.docker_compose_v2:
