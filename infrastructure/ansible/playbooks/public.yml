@@ -4,6 +4,9 @@
   become: true
 
   tasks:
+    # frontend is created by the deploy task below with its own ownership,
+    # so it is not part of this loop; listing it here would make the two
+    # tasks overwrite each other's group on every run.
     - name: Create public service directories
       ansible.builtin.file:
         path: "/opt/shuttlevn/{{ item }}"
@@ -12,7 +15,6 @@
         group: ubuntu
         mode: '0755'
       loop:
-        - frontend
         - proxy
         - monitoring
     
@@ -23,6 +25,16 @@
         owner: root
         group: root
         mode: "0644"
+
+    # The GitHub runner user deploys here and writes .env and deploy.log,
+    # so the directory has to be group-writable for the docker group.
+    - name: Allow the docker group to deploy
+      ansible.builtin.file:
+        path: /opt/shuttlevn/frontend
+        state: directory
+        owner: ubuntu
+        group: docker
+        mode: '0775'
 
     - name: Install Nginx
       ansible.builtin.apt:
