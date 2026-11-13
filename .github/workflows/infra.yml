@@ -70,6 +70,7 @@ jobs:
           TF_VAR_ami_id: ${{ vars.TF_VAR_AMI_ID }}
           TF_VAR_ssh_allowed_cidr: ${{ vars.TF_VAR_SSH_ALLOWED_CIDR }}
           TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+          TF_VAR_enable_nat_gateway: ${{ vars.TF_VAR_ENABLE_NAT_GATEWAY }}
         run: |
           terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
           terraform show -no-color tfplan > plan.txt
