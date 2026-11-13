@@ -24,14 +24,6 @@ resource "aws_vpc_security_group_ingress_rule" "public_ingress" {
       port = 22
       cidr = var.ssh_allowed_cidr
     }
-    http = {
-      port = 80
-      cidr = "0.0.0.0/0"
-    }
-    https = {
-      port = 443
-      cidr = "0.0.0.0/0"
-    }
   }
 
   security_group_id = aws_security_group.public.id
@@ -40,6 +32,42 @@ resource "aws_vpc_security_group_ingress_rule" "public_ingress" {
   from_port         = each.value.port
   to_port           = each.value.port
   cidr_ipv4         = each.value.cidr
+}
+
+# Ports 80 and 443 are reachable from Cloudflare only
+resource "aws_vpc_security_group_ingress_rule" "public_web" {
+  for_each = {
+    for pair in setproduct(["80", "443"], local.cloudflare_ipv4) :
+    "${pair[0]}-${pair[1]}" => { port = tonumber(pair[0]), cidr = pair[1] }
+  }
+
+  security_group_id = aws_security_group.public.id
+  description       = "Allow Cloudflare to reach port ${each.value.port}"
+  ip_protocol       = "tcp"
+  from_port         = each.value.port
+  to_port           = each.value.port
+  cidr_ipv4         = each.value.cidr
+}
+
+# Cloudflare's published ranges, see https://www.cloudflare.com/ips-v4
+locals {
+  cloudflare_ipv4 = [
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22",
+  ]
 }
 
 resource "aws_vpc_security_group_ingress_rule" "private_ingress" {

@@ -41,6 +41,34 @@
         name: nginx
         state: present
 
+    # Nginx refuses to reload with a missing certificate, so the files have to
+    # exist before the site config that references them is installed.
+    - name: Create the TLS directory
+      ansible.builtin.file:
+        path: /etc/nginx/ssl
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Install the origin TLS certificate
+      ansible.builtin.copy:
+        src: "{{ shuttlevn_tls_source }}/fullchain.pem"
+        dest: /etc/nginx/ssl/fullchain.pem
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload Nginx
+
+    - name: Install the origin TLS private key
+      ansible.builtin.copy:
+        src: "{{ shuttlevn_tls_source }}/privkey.pem"
+        dest: /etc/nginx/ssl/privkey.pem
+        owner: root
+        group: root
+        mode: '0600'
+      notify: Reload Nginx
+
     - name: Install ShuttleVN Nginx config
       ansible.builtin.template:
         src: ../templates/shuttlevn.nginx.conf.j2

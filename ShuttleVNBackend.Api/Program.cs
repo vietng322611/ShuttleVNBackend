@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using dotenv.net;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using ShuttleVNBackend.Api;
@@ -62,6 +63,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/auth/logout";
         options.Cookie.HttpOnly = true;
         options.Cookie.Name = "shuttlevn.auth";
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.SlidingExpiration = true;
         options.Events.OnRedirectToLogin = context =>
         {
@@ -94,6 +97,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
+    KnownIPNetworks = { },
+    KnownProxies = { },
+});
 
 app.UseCors("Frontend");
 
