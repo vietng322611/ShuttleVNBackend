@@ -105,11 +105,6 @@ app.MapControllers();
 
 app.MapHealthChecks("/health");
 
-using var scope = app.Services.CreateScope();
-
-var db = scope.ServiceProvider.GetRequiredService<ShuttleVnDbContext>();
-await db.Database.MigrateAsync();
-
 await app.SeedAdminAccountAsync();
 
 await app.RunAsync();
