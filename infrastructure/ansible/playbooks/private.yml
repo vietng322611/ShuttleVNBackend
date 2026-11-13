@@ -47,45 +47,42 @@
         name: shuttlevn
         state: present
 
-    # A key added to the app but forgotten in api.env fails silently at
-    # runtime: the feature just returns 503 with no configuration error.
-    # That is exactly how the Assistant__* block went missing in
-    # production. .env.example is the committed contract, so every key it
-    # fills in with a non-empty value must be present in the local source
-    # before anything is copied to the host.
+    # \x27 avoids embedding a literal single quote inside a Jinja string.
     - name: Read the committed environment contract
       ansible.builtin.set_fact:
-        # Every non-comment key in .env.example is a required key, even when
-        # its example value is blank: the blank only means "you must decide
-        # the value". Keys that are genuinely optional are commented out in
-        # the example file instead of listed empty.
         required_env_keys: >-
           {{
             lookup('ansible.builtin.file',
                    playbook_dir + '/../../../.env.example')
-            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=''', multiline=True)
+            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=\x27', multiline=True)
           }}
         local_env_keys: >-
           {{
             lookup('ansible.builtin.file', env_file_source, errors='ignore')
-            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=''', multiline=True)
+            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=\x27', multiline=True)
+          }}
+        local_env_blank_keys: >-
+          {{
+            lookup('ansible.builtin.file', env_file_source, errors='ignore')
+            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=\x27\x27', multiline=True)
           }}
 
-    - name: Fail when a contracted key is missing from the API environment
+    - name: Fail when a contracted key is missing or blank in the API environment
       ansible.builtin.assert:
         that:
           - local_env_keys | length > 0
           - required_env_keys | difference(local_env_keys) | length == 0
+          - required_env_keys | intersect(local_env_blank_keys) | length == 0
         fail_msg: >-
           {{ env_file_source }} is missing
-          {{ required_env_keys | difference(local_env_keys) | join(', ') }}.
-          Add the key and re-run.
+          {{ required_env_keys | difference(local_env_keys) | join(', ') or 'no keys' }}
+          and has blank values for
+          {{ required_env_keys | intersect(local_env_blank_keys) | join(', ') or 'no keys' }}.
+          Fill them in and re-run.
         quiet: true
 
-    # The source of truth for production secrets is
-    # ~/.config/shuttlevn/api.env on the operator machine, outside both
-    # repositories. Every run copies it over the EC2 copy, so editing the
-    # local file and re-running this playbook is the way to rotate values.
+    # Production secrets live in ~/.config/shuttlevn/api.env outside both
+    # repositories; re-running this playbook is how values are rotated.
     - name: Install private API environment
       ansible.builtin.copy:
         src: "{{ env_file_source }}"
