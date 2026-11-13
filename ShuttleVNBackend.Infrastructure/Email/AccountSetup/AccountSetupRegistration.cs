@@ -14,7 +14,8 @@ public static class AccountSetupRegistration
             .Bind(configuration.GetSection(AccountSetupOptions.SectionName))
             .Validate(HasValidFrontendUrl, "AccountSetup:FrontendBaseUrl must be an absolute http or https URL.")
             .Validate(options => options.SetPasswordPath.StartsWith('/'),
-                "AccountSetup:SetPasswordPath must start with '/'.");
+                "AccountSetup:SetPasswordPath must start with '/'.")
+            .ValidateOnStart();
 
         services.AddMemoryCache();
         services.AddSingleton<EmailTemplateRenderer>();
