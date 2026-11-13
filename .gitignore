@@ -56,6 +56,11 @@ env/
 !.env.example
 
 # =========================
+# Ansible secrets
+# =========================
+infrastructure/ansible/group_vars/all/secrets.yml
+
+# =========================
 # Logs
 # =========================
 Logs/
@@ -110,3 +115,5 @@ crash.*.log
 
 # Sonarqube
 .sonarqube/
+
+.temp/
