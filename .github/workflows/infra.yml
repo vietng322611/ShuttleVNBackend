@@ -31,6 +31,9 @@ env:
 
 permissions:
   contents: read
+  # Required by configure-aws-credentials: it exchanges this job's OIDC token
+  # for the role, so no long-lived AWS keys exist in the repository.
+  id-token: write
 
 jobs:
   plan:

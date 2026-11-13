@@ -33,6 +33,8 @@ env:
 
 permissions:
   contents: read
+  # Required by configure-aws-credentials to assume the Terraform role via OIDC.
+  id-token: write
 
 jobs:
   converge:
