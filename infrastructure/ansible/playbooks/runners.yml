@@ -1,19 +1,22 @@
 ---
-# Registers a self-hosted GitHub Actions runner on the private host.
+# Registers a self-hosted GitHub Actions runner on both hosts: the private
+# host deploys the API, the public host deploys the frontend. Each runner is
+# scoped to its own repository and labelled <inventory_hostname>-runner.
 #
-# The registration token comes from GitHub and expires in ~1 hour, so it
-# cannot be stored in group_vars. Pass it per run:
+# Registration tokens are repository-scoped and expire in ~1 hour, so they
+# cannot live in group_vars. Pass one token per group:
 #
 #   ~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
-#     -e github_runner_token=<token>
+#     -e github_runner_token=<backend-repo-token> --limit private \
+#     && ~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
+#     -e github_runner_token=<frontend-repo-token> --limit public
 #
 # Re-running after registration is a no-op: the service unit check short
 # circuits before any download.
 #
-# SECURITY: this repository is public. A fork PR must never reach a
+# SECURITY: both repositories are public. A fork PR must never reach a
 # self-hosted runner, so:
-#   - only the private host runs a runner (Nginx host has none),
-#   - the workflow is triggered on push to devops, never on
+#   - the workflows are triggered on push to devops, never on
 #     pull_request / pull_request_target,
 #   - GitHub's "Require approval for all outside collaborators" setting
 #     stays enabled for Actions.
@@ -22,25 +25,31 @@
 # root-equivalent on the host. Acceptable for two single-tenant course EC2
 # instances; revisit before any shared or public deployment.
 - name: Install GitHub Actions runners
-  hosts: private
+  hosts: all
   become: true
   gather_facts: false
 
   vars:
-    github_repo: vietng322611/ShuttleVNBackend
+    # Each group defines runner_repo in group_vars; the private host has no
+    # default here so a missing definition fails loudly instead of silently
+    # registering the runner against the wrong repository.
     runner_version: 2.338.2
     runner_user: ghrunner
     runner_dir: /opt/actions-runner
 
   tasks:
-    - name: Require a registration token
+    - name: Require a registration token and repository
       ansible.builtin.assert:
         that:
           - github_runner_token is defined
           - github_runner_token | length > 0
+          - runner_repo is defined
+          - runner_repo | length > 0
         fail_msg: >-
           Pass -e github_runner_token=<token> from
-          GitHub > Settings > Actions > Runners > New self-hosted runner.
+          GitHub > Settings > Actions > Runners > New self-hosted runner
+          in the repository named by runner_repo (one token per group,
+          tokens are repository-scoped).
       no_log: true
 
     - name: Check for an existing runner service
@@ -100,7 +109,7 @@
       ansible.builtin.command:
         cmd: >-
           ./config.sh
-          --url https://github.com/{{ github_repo }}
+          --url https://github.com/{{ runner_repo }}
           --token {{ github_runner_token }}
           --labels {{ inventory_hostname }}-runner
           --unattended --replace

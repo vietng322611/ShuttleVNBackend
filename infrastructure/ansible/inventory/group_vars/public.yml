@@ -1,0 +1,4 @@
+# Repository the runner on the public host deploys. The runner is registered
+# against this repo, so it is labelled public_ec2-runner and used by
+# shuttle-vn-frontend/.github/workflows/ci-cd.yml.
+runner_repo: vietng322611/shuttle-vn-frontend
