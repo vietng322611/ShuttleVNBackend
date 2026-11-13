@@ -50,6 +50,15 @@
         mode: '0644'
       notify: Restart Grafana
 
+    - name: Install Tempo configuration
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../templates/tempo.yml"
+        dest: /opt/shuttlevn/monitoring/tempo.yml
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      notify: Restart Tempo
+
     - name: Install Grafana dashboard provider
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../templates/grafana-dashboards.yml"
@@ -122,4 +131,14 @@
         project_name: observability
         services:
           - grafana
+        state: restarted
+
+    - name: Restart Tempo
+      community.docker.docker_compose_v2:
+        project_src: /opt/shuttlevn/monitoring
+        files:
+          - observability.yml
+        project_name: observability
+        services:
+          - tempo
         state: restarted

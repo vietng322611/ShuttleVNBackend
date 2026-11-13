@@ -32,6 +32,13 @@
         group: ubuntu
         mode: '0644'
 
+    # The API and the observability stack are separate Compose projects,
+    # so they need a shared user-defined network for service-name DNS.
+    - name: Create shared service network
+      community.docker.docker_network:
+        name: shuttlevn
+        state: present
+
     - name: Install private API environment
       ansible.builtin.copy:
         src: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/shuttlevn/api.env"

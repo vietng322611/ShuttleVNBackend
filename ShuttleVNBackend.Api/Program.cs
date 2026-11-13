@@ -51,6 +51,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<PendingBookingExpiryService>();
 builder.Services.AddAssistantRateLimit();
+builder.Services.AddObservability(builder.Configuration);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -104,6 +105,7 @@ app.UseRateLimiter();
 app.MapControllers();
 
 app.MapHealthChecks("/health");
+app.MapPrometheusScrapingEndpoint();
 
 await app.SeedAdminAccountAsync();
 

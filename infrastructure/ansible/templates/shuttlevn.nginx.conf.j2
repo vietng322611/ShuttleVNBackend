@@ -2,6 +2,12 @@ server {
     listen 80;
     server_name _;
 
+    # Application metrics are for the private Prometheus only. Answer 404
+    # at the edge so a future catch-all proxy rule cannot leak them.
+    location /metrics {
+        return 404;
+    }
+
     location /api/ {
         proxy_pass http://{{ hostvars['private_ec2'].ansible_host }}:8080;
         proxy_set_header Host $host;

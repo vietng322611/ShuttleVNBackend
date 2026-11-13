@@ -13,3 +13,10 @@ scrape_configs:
       - targets:
           - "{{ hostvars['public_ec2'].private_ip }}:8081"
           - "{{ hostvars['private_ec2'].private_ip }}:8081"
+
+  # Application metrics. The API joins the shared shuttlevn network, so it
+  # is scraped by container name instead of the host IP.
+  - job_name: shuttlevn-api
+    static_configs:
+      - targets:
+          - "shuttlevn-api:8080"
