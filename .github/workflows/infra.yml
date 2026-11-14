@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Apply the planned changes after approval'
+        description: 'Apply the planned changes, or tear the root down'
         type: choice
-        options: [plan, apply]
+        options: [plan, apply, destroy]
         default: plan
 
 concurrency:
@@ -142,3 +142,43 @@ jobs:
             terraform output -json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  destroy:
+    name: Destroy
+    # Dispatch only, and never on a push. The approval on the `production`
+    # Environment is the confirmation step, so nothing else is asked.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.action == 'destroy'
+    runs-on: ubuntu-24.04
+    environment: production
+    defaults:
+      run:
+        working-directory: ${{ env.TF_ROOT }}
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      # The saved tfplan is a create plan, so destroy plans its own. The EIP
+      # goes with the instance, which means Cloudflare must be repointed at the
+      # new address after the next apply.
+      - name: Terraform destroy
+        env:
+          TF_VAR_project_name: ${{ vars.TF_VAR_PROJECT_NAME }}
+          TF_VAR_ami_id: ${{ vars.TF_VAR_AMI_ID }}
+          TF_VAR_ssh_allowed_cidr: ${{ vars.TF_VAR_SSH_ALLOWED_CIDR }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+          TF_VAR_enable_nat_gateway: ${{ vars.TF_VAR_ENABLE_NAT_GATEWAY }}
+        run: terraform destroy -input=false -no-color -lock-timeout=5m -auto-approve
