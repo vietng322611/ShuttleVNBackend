@@ -1,0 +1,122 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: shuttlevn-webhook
+    receivers:
+      - uid: shuttlevn-webhook
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: "{{ alert_webhook_url }}"
+          httpMethod: POST
+
+policies:
+  - orgId: 1
+    receiver: shuttlevn-webhook
+    group_by:
+      - grafana_folder
+      - alertname
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+groups:
+  - orgId: 1
+    name: shuttlevn-infra
+    folder: ShuttleVN
+    interval: 1m
+    rules:
+      - uid: shuttlevn-target-down
+        title: Scrape target down
+        condition: A
+        for: 2m
+        noDataState: OK
+        execErrState: Alerting
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ '{{' }} $labels.job {{ '}}' }} / {{ '{{' }} $labels.instance {{ '}}' }} is down"
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: up == bool 0
+
+      - uid: shuttlevn-node-cpu-high
+        title: Node CPU above 85%
+        condition: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU {{ '{{' }} $values.A.Value {{ '}}' }}% on {{ '{{' }} $labels.instance {{ '}}' }}"
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: >-
+                100 - (avg by (instance)
+                (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+                > bool 85
+
+      - uid: shuttlevn-root-disk-low
+        title: Root filesystem below 15% free
+        condition: A
+        for: 10m
+        noDataState: NoData
+        execErrState: Alerting
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk free {{ '{{' }} $values.A.Value {{ '}}' }} bytes on {{ '{{' }} $labels.instance {{ '}}' }}"
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: >-
+                node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+                / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+                < bool 0.15
+
+      - uid: shuttlevn-api-down
+        title: ShuttleVN API container missing
+        condition: A
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+        annotations:
+          summary: shuttlevn-api container not visible to cAdvisor on private host
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: absent(container_last_seen{name="shuttlevn-api"})

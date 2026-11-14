@@ -1,19 +1,74 @@
-﻿server {
-    listen 80;
+# Plain HTTP on an unknown hostname gets no response at all. 444 closes the
+# connection, so probing the public IP reveals neither the site nor the fact
+# that TLS exists on 443.
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
     server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ shuttlevn_domain }};
+    return 301 https://{{ shuttlevn_domain }}$request_uri;
+}
+
+# TLS with a hostname this certificate does not cover. Reached only if the
+# security group is bypassed, and even then it serves nothing.
+server {
+    # http2 is a listen flag here because Ubuntu ships nginx 1.24, which has
+    # no standalone http2 directive (that arrived in 1.25.1).
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+
+    return 444;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name {{ shuttlevn_domain }};
+
+    # Cloudflare Origin CA certificate, valid for *.murasaki.id.vn only, so a
+    # client connecting straight to the IP fails the handshake before any
+    # content is served.
+    ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # Cloudflare is the TLS edge the client sees, so tell browsers to stay on
+    # HTTPS. includeSubDomains is safe: every name here is behind Cloudflare.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Application metrics are for the private Prometheus only. Answer 404
+    # at the edge so a future catch-all proxy rule cannot leak them.
+    location /metrics {
+        return 404;
+    }
 
     location /api/ {
         proxy_pass http://{{ hostvars['private_ec2'].ansible_host }}:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        # Fixed to https rather than $scheme: the browser talks to Cloudflare,
+        # Cloudflare talks to this block over TLS, and the API needs to know
+        # the original request was secure to mark its cookies Secure.
+        proxy_set_header X-Forwarded-Proto https;
     }
 
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto https;
     }
 }

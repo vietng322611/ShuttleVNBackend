@@ -1,0 +1,141 @@
+---
+# Registers a self-hosted GitHub Actions runner on both hosts: the private
+# host deploys the API, the public host deploys the frontend. Each runner is
+# scoped to its own repository and labelled <inventory_hostname>-runner.
+#
+# Registration tokens are repository-scoped and expire in ~1 hour, so they
+# cannot live in group_vars. Pass one token per group:
+#
+#   ~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
+#     -e github_runner_token=<backend-repo-token> --limit private \
+#     && ~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
+#     -e github_runner_token=<frontend-repo-token> --limit public
+#
+# Re-running after registration is a no-op: the service unit check short
+# circuits before any download.
+#
+# SECURITY: both repositories are public. A fork PR must never reach a
+# self-hosted runner, so:
+#   - the workflows are triggered on push to main, never on
+#     pull_request / pull_request_target,
+#   - GitHub's "Require approval for all outside collaborators" setting
+#     stays enabled for Actions.
+#
+# Deliberate ceiling: the runner user joins the docker group, which is
+# root-equivalent on the host. Acceptable for two single-tenant course EC2
+# instances; revisit before any shared or public deployment.
+- name: Install GitHub Actions runners
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    # Each group defines runner_repo in group_vars; the private host has no
+    # default here so a missing definition fails loudly instead of silently
+    # registering the runner against the wrong repository.
+    runner_version: 2.338.2
+    runner_user: ghrunner
+    runner_dir: /opt/actions-runner
+
+  tasks:
+    - name: Require a registration token and repository
+      ansible.builtin.assert:
+        that:
+          - github_runner_token is defined
+          - github_runner_token | length > 0
+          - runner_repo is defined
+          - runner_repo | length > 0
+        fail_msg: >-
+          Pass -e github_runner_token=<token> from
+          GitHub > Settings > Actions > Runners > New self-hosted runner
+          in the repository named by runner_repo (one token per group,
+          tokens are repository-scoped).
+      no_log: true
+
+    - name: Check for an existing runner service
+      ansible.builtin.shell: |
+        set -o pipefail
+        systemctl list-units --all --quiet --type=service | grep -c '^ *actions\.runner\.' || true
+      args:
+        executable: /bin/bash
+      register: runner_service_count
+      changed_when: false
+      check_mode: false
+
+    - name: Create the runner user
+      ansible.builtin.user:
+        name: "{{ runner_user }}"
+        shell: /bin/bash
+        create_home: true
+      when: runner_service_count.stdout | int == 0
+
+    - name: Allow the runner user to use Docker
+      ansible.builtin.user:
+        name: "{{ runner_user }}"
+        groups: docker
+        append: true
+      when: runner_service_count.stdout | int == 0
+
+    - name: Allow the runner user to escalate for Ansible
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/{{ runner_user }}
+        owner: root
+        group: root
+        mode: '0440'
+        content: "{{ runner_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        validate: /usr/sbin/visudo -cf %s
+      when: runner_service_count.stdout | int == 0
+
+    - name: Create the runner directory
+      ansible.builtin.file:
+        path: "{{ runner_dir }}"
+        state: directory
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        mode: '0755'
+      when: runner_service_count.stdout | int == 0
+
+    - name: Download the runner package
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/actions/runner/releases/download/v{{ runner_version
+          }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz
+        dest: "{{ runner_dir }}/runner.tar.gz"
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+        mode: '0644'
+      when: runner_service_count.stdout | int == 0
+
+    - name: Unpack the runner package
+      ansible.builtin.unarchive:
+        src: "{{ runner_dir }}/runner.tar.gz"
+        dest: "{{ runner_dir }}"
+        remote_src: true
+        owner: "{{ runner_user }}"
+        group: "{{ runner_user }}"
+      when: runner_service_count.stdout | int == 0
+
+    - name: Register the runner
+      ansible.builtin.command:
+        cmd: >-
+          ./config.sh
+          --url https://github.com/{{ runner_repo }}
+          --token {{ github_runner_token }}
+          --labels {{ inventory_hostname }}-runner
+          --unattended --replace
+        chdir: "{{ runner_dir }}"
+      become_user: "{{ runner_user }}"
+      no_log: true
+      when: runner_service_count.stdout | int == 0
+
+    - name: Install the runner service
+      ansible.builtin.command:
+        cmd: ./svc.sh install {{ runner_user }}
+        chdir: "{{ runner_dir }}"
+      when: runner_service_count.stdout | int == 0
+
+    - name: Start the runner service
+      ansible.builtin.command:
+        cmd: ./svc.sh start
+        chdir: "{{ runner_dir }}"
+      when: runner_service_count.stdout | int == 0

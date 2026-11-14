@@ -1,0 +1,134 @@
+name: Server configuration
+
+# Ansible converges machine state, not application state. A push is not a
+# deployment, and `docker compose up -d` reports changed on every run, so
+# this never runs automatically. Dispatch it when playbooks or templates
+# change.
+#
+# Requires the self-hosted private runner: it lives in the VPC, so it can
+# reach the private host directly and the public host through it (see
+# ansible_ssh_common_args in group_vars/private.yml).
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Host group to converge'
+        type: choice
+        options: [all, private, public]
+        default: all
+      check:
+        description: 'Dry run (--check --diff)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: config-converge
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  ANSIBLE_ROOT: infrastructure/ansible
+  TF_ROOT: infrastructure/terraform-aws
+  ANSIBLE_FORCE_COLOR: '1'
+
+permissions:
+  contents: read
+  # Required by configure-aws-credentials to assume the Terraform role via OIDC.
+  id-token: write
+
+jobs:
+  converge:
+    name: Ansible converge
+    # Ansible needs become on every host, so it must not run from a github-
+    # hosted runner that has no route into the VPC.
+    runs-on: [self-hosted, private_ec2-runner]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The inventory shell out to `terraform output`, so the runner needs
+      # the same short-lived credentials the infrastructure workflow uses.
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.16.3'
+
+      - name: Install Ansible
+        run: |
+          python3 -m venv ~/.ansible-venv
+          ~/.ansible-venv/bin/pip install --quiet --upgrade pip
+          ~/.ansible-venv/bin/pip install --quiet ansible-core community.docker
+          ~/.ansible-venv/bin/ansible --version | head -1
+
+      - name: Materialise operator files
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          API_ENV: ${{ secrets.API_ENV }}
+          ANSIBLE_SECRETS: ${{ secrets.ANSIBLE_SECRETS }}
+          TLS_FULLCHAIN: ${{ secrets.TLS_FULLCHAIN }}
+          TLS_PRIVATE_KEY: ${{ secrets.TLS_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh ~/.config/shuttlevn/tls
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/shuttlevn
+          chmod 0600 ~/.ssh/shuttlevn
+          printf '%s\n' "$API_ENV" > ~/.config/shuttlevn/api.env
+          printf '%s\n' "$ANSIBLE_SECRETS" > "$ANSIBLE_ROOT/inventory/group_vars/all/secrets.yml"
+          printf '%s\n' "$TLS_FULLCHAIN" > ~/.config/shuttlevn/tls/fullchain.pem
+          printf '%s\n' "$TLS_PRIVATE_KEY" > ~/.config/shuttlevn/tls/privkey.pem
+
+      # ansible.cfg keeps host_key_checking on. Trust the hosts explicitly
+      # instead of turning verification off.
+      # -raw only works for primitive outputs, and `servers` is an object, so
+      # read the JSON form instead of annotating it as a string.
+      - name: Trust the hosts
+        run: |
+          set -euo pipefail
+          cd "$TF_ROOT"
+          terraform init -input=false >/dev/null
+          terraform output -json servers > /tmp/servers.json
+          mapfile -t HOSTS < <(python3 -c '
+          import json
+          s = json.load(open("/tmp/servers.json"))
+          print(s["public"]["public_ip"])
+          print(s["public"]["private_ip"])
+          print(s["private"]["private_ip"])
+          ')
+          ssh-keyscan -T 10 -H "${HOSTS[@]}" >> ~/.ssh/known_hosts
+          sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
+
+      - name: Syntax check
+        working-directory: ${{ env.ANSIBLE_ROOT }}
+        run: ~/.ansible-venv/bin/ansible-playbook --syntax-check playbooks/site.yml
+
+      # site.yml does not include runners.yml: runner registration needs a
+      # repository-scoped token that expires in an hour and is issued by hand.
+      - name: Converge
+        working-directory: ${{ env.ANSIBLE_ROOT }}
+        env:
+          LIMIT: ${{ inputs.limit }}
+          CHECK: ${{ inputs.check }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$LIMIT" ] && [ "$LIMIT" != "all" ]; then
+            args+=(--limit "$LIMIT")
+          fi
+          if [ "$CHECK" = "true" ]; then
+            args+=(--check --diff)
+          fi
+          ~/.ansible-venv/bin/ansible-playbook playbooks/site.yml "${args[@]}"
+
+      - name: Remove operator files
+        if: always()
+        run: |
+          rm -f ~/.config/shuttlevn/api.env \
+                ~/.config/shuttlevn/tls/fullchain.pem \
+                ~/.config/shuttlevn/tls/privkey.pem \
+                ~/.ssh/shuttlevn \
+                "$ANSIBLE_ROOT/inventory/group_vars/all/secrets.yml"

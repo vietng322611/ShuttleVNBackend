@@ -14,6 +14,7 @@ Hệ thống RESTful Web API cho nền tảng quản lý và đặt sân cầu l
   * [3. Cập nhật Database (Migrations)](#3-cập-nhật-database-migrations)
   * [4. Khởi chạy ứng dụng](#4-khởi-chạy-ứng-dụng)
 * [Chạy với Docker](#chạy-với-docker)
+* [Triển khai (Deployment)](infrastructure/README.md)
 * [Các tính năng chính](#các-tính-năng-chính)
 
 ---

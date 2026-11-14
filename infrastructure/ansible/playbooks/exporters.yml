@@ -4,6 +4,14 @@
   become: true
 
   tasks:
+    - name: Create monitoring directory
+      ansible.builtin.file:
+        path: /opt/shuttlevn/monitoring
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
     - name: Install exporter Compose file
       ansible.builtin.template:
         src: "{{ playbook_dir }}/../templates/exporters.compose.yml.j2"
@@ -15,5 +23,7 @@
     - name: Start host exporters
       community.docker.docker_compose_v2:
         project_src: /opt/shuttlevn/monitoring
+        files:
+          - compose.yml
         project_name: host-exporters
         state: present

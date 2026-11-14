@@ -1,3 +1,0 @@
-ansible_user: ubuntu
-ansible_python_interpreter: /usr/bin/python3
-ansible_ssh_private_key_file: /home/vietng/.ssh/shuttlevn.pem

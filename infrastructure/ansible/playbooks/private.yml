@@ -3,7 +3,15 @@
   hosts: private
   become: true
 
+  vars:
+    # Production secrets live outside both repositories, on the operator
+    # machine only. Everything else is derived from this path.
+    env_file_source: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/shuttlevn/api.env"
+
   tasks:
+    # backend is created by the deploy task below with its own ownership,
+    # so it is not part of this loop; listing it here would make the two
+    # tasks overwrite each other's group on every run.
     - name: Create private service directories
       ansible.builtin.file:
         path: "/opt/shuttlevn/{{ item }}"
@@ -12,8 +20,17 @@
         group: ubuntu
         mode: '0755'
       loop:
-        - backend
         - monitoring
+
+    # The GitHub runner user deploys here and writes deploy.log, so the
+    # directory has to be group-writable for the docker group.
+    - name: Allow the docker group to deploy
+      ansible.builtin.file:
+        path: /opt/shuttlevn/backend
+        state: directory
+        owner: ubuntu
+        group: docker
+        mode: '0775'
 
     - name: Install production API Compose file
       ansible.builtin.template:
@@ -23,11 +40,80 @@
         group: ubuntu
         mode: '0644'
 
+    # The API and the observability stack are separate Compose projects,
+    # so they need a shared user-defined network for service-name DNS.
+    - name: Create shared service network
+      community.docker.docker_network:
+        name: shuttlevn
+        state: present
+
+    # \x27 avoids embedding a literal single quote inside a Jinja string.
+    - name: Read the committed environment contract
+      ansible.builtin.set_fact:
+        required_env_keys: >-
+          {{
+            lookup('ansible.builtin.file',
+                   playbook_dir + '/../../../.env.example')
+            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=\x27', multiline=True)
+          }}
+        local_env_keys: >-
+          {{
+            lookup('ansible.builtin.file', env_file_source, errors='ignore')
+            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=\x27', multiline=True)
+          }}
+        local_env_blank_keys: >-
+          {{
+            lookup('ansible.builtin.file', env_file_source, errors='ignore')
+            | regex_findall('^([A-Za-z_][A-Za-z0-9_]*)=\x27\x27', multiline=True)
+          }}
+
+    - name: Fail when a contracted key is missing or blank in the API environment
+      ansible.builtin.assert:
+        that:
+          - local_env_keys | length > 0
+          - required_env_keys | difference(local_env_keys) | length == 0
+          - required_env_keys | intersect(local_env_blank_keys) | length == 0
+        fail_msg: >-
+          {{ env_file_source }} is missing
+          {{ required_env_keys | difference(local_env_keys) | join(', ') or 'no keys' }}
+          and has blank values for
+          {{ required_env_keys | intersect(local_env_blank_keys) | join(', ') or 'no keys' }}.
+          Fill them in and re-run.
+        quiet: true
+
+    # Production secrets live in ~/.config/shuttlevn/api.env outside both
+    # repositories; re-running this playbook is how values are rotated.
     - name: Install private API environment
       ansible.builtin.copy:
-        src: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/shuttlevn/api.env"
+        src: "{{ env_file_source }}"
         dest: /opt/shuttlevn/backend/api.env
         owner: root
-        group: root
-        mode: '0600'
+        # The GitHub runner user deploys with docker compose and must read
+        # this file. docker group membership is already root-equivalent, so
+        # group-readable secrets do not widen the blast radius.
+        group: docker
+        mode: '0640'
       no_log: true
+      notify: Recreate API container
+
+  handlers:
+    # Compose only re-reads env_file when the container is recreated, and
+    # the API image tag is owned by the deploy pipeline rather than this
+    # playbook. Read the tag off the running container so the recreate
+    # keeps whatever CI last deployed instead of guessing.
+    - name: Look up the running API image
+      ansible.builtin.command:
+        cmd: docker inspect shuttlevn-api --format {% raw %}'{{.Config.Image}}'{% endraw %}
+      register: api_image
+      changed_when: false
+      failed_when: false
+      listen: Recreate API container
+
+    - name: Recreate API container
+      ansible.builtin.command:
+        cmd: docker compose up -d --force-recreate --remove-orphans
+        chdir: /opt/shuttlevn/backend
+      environment:
+        SHUTTLEVN_API_IMAGE: "{{ api_image.stdout }}"
+      when: api_image.rc == 0 and api_image.stdout | length > 0
+      listen: Recreate API container

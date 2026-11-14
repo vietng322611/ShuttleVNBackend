@@ -1,0 +1,177 @@
+name: CI/CD
+
+# Runs on push to main only. A self-hosted runner must never be reachable
+# from a fork pull request on a public repository, so pull_request and
+# pull_request_target triggers are deliberately absent.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ShuttleVNBackend.Api/**
+      - ShuttleVNBackend.Application/**
+      - ShuttleVNBackend.Core/**
+      - ShuttleVNBackend.Infrastructure/**
+      - ShuttleVNBackend.slnx
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/**
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # sonarscanner needs history to attribute issues to the right commit.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache SonarQube Cloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Restore
+        run: dotnet restore ShuttleVNBackend.slnx
+
+      # SonarQube Cloud's free plan refuses Quality Gate lookups outside the
+      # default branch, so the gate is only awaited on main. The project key
+      # is owner_repo, derived rather than hardcoded.
+      - name: Begin SonarQube Cloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >-
+          dotnet sonarscanner begin
+          /k:"${{ github.repository_owner }}_${{ github.event.repository.name }}"
+          /o:"${{ secrets.SONAR_ORGANIZATION }}"
+          /d:sonar.token="$SONAR_TOKEN"
+          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+          /d:sonar.qualitygate.wait=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build
+        run: dotnet build ShuttleVNBackend.slnx --no-restore --configuration Release
+
+      # The solution currently has no test projects, so this step is best
+      # effort until the Application tests land.
+      - name: Test
+        continue-on-error: true
+        run: |
+          dotnet test ShuttleVNBackend.slnx --no-build --configuration Release \
+            --collect:"XPlat Code Coverage" --results-directory TestResults \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+      - name: End SonarQube Cloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+  image:
+    name: Build and push image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        id: meta
+        run: echo "tag=${REGISTRY}/${IMAGE_NAME,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to EC2
+    needs: image
+    runs-on: [self-hosted, private_ec2-runner]
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and restart
+        env:
+          SHUTTLEVN_API_IMAGE: ${{ needs.image.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cd /opt/shuttlevn/backend
+          echo "$(date -Is) deploying ${SHUTTLEVN_API_IMAGE}" >> deploy.log
+          docker pull "$SHUTTLEVN_API_IMAGE"
+          SHUTTLEVN_API_IMAGE="$SHUTTLEVN_API_IMAGE" docker compose up -d --remove-orphans
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              echo "healthy after ${attempt} attempt(s)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::API did not become healthy within 150s"
+          cd /opt/shuttlevn/backend
+          docker compose logs --tail 100 api >> deploy.log
+          exit 1
+
+      - name: Record deployed tag
+        if: always()
+        run: |
+          cd /opt/shuttlevn/backend
+          docker inspect shuttlevn-api --format '{{.Config.Image}}' >> deploy.log || true

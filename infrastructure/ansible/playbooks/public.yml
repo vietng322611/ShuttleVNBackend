@@ -4,6 +4,9 @@
   become: true
 
   tasks:
+    # frontend is created by the deploy task below with its own ownership,
+    # so it is not part of this loop; listing it here would make the two
+    # tasks overwrite each other's group on every run.
     - name: Create public service directories
       ansible.builtin.file:
         path: "/opt/shuttlevn/{{ item }}"
@@ -12,10 +15,19 @@
         group: ubuntu
         mode: '0755'
       loop:
-        - frontend
         - proxy
         - monitoring
     
+    # The GitHub runner user deploys here and writes .env and deploy.log,
+    # so the directory has to be group-writable for the docker group.
+    - name: Allow the docker group to deploy
+      ansible.builtin.file:
+        path: /opt/shuttlevn/frontend
+        state: directory
+        owner: ubuntu
+        group: docker
+        mode: '0775'
+
     - name: Install frontend Compose file
       ansible.builtin.template:
         src: ../templates/frontend.compose.yml.j2
@@ -28,6 +40,34 @@
       ansible.builtin.apt:
         name: nginx
         state: present
+
+    # Nginx refuses to reload with a missing certificate, so the files have to
+    # exist before the site config that references them is installed.
+    - name: Create the TLS directory
+      ansible.builtin.file:
+        path: /etc/nginx/ssl
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Install the origin TLS certificate
+      ansible.builtin.copy:
+        src: "{{ shuttlevn_tls_source }}/fullchain.pem"
+        dest: /etc/nginx/ssl/fullchain.pem
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload Nginx
+
+    - name: Install the origin TLS private key
+      ansible.builtin.copy:
+        src: "{{ shuttlevn_tls_source }}/privkey.pem"
+        dest: /etc/nginx/ssl/privkey.pem
+        owner: root
+        group: root
+        mode: '0600'
+      notify: Reload Nginx
 
     - name: Install ShuttleVN Nginx config
       ansible.builtin.template:

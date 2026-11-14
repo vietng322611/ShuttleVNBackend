@@ -11,25 +11,51 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
-  
+    networks:
+      - default
+      - shuttlevn
+
+  tempo:
+    image: grafana/tempo:2.9.0
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/tempo.yml
+    volumes:
+      - ./tempo.yml:/etc/tempo.yml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - default
+      - shuttlevn
+
   grafana:
-      image: grafana/grafana:13.2.4
-      restart: unless-stopped
-      depends_on:
-        - prometheus
-      ports:
-        - "127.0.0.1:3000:3000"
-      environment:
-        GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
-      volumes:
-        - grafana-data:/var/lib/grafana
-        - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
-      secrets:
-        - grafana_admin_password
+    image: grafana/grafana:13.2.4
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - tempo
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/shuttlevn.yml:ro
+      - ./dashboards:/etc/grafana/dashboards:ro
+      - ./grafana-alerting.yml:/etc/grafana/provisioning/alerting/shuttlevn.yml:ro
+    secrets:
+      - grafana_admin_password
 
 volumes:
   prometheus-data:
   grafana-data:
+  tempo-data:
+
+networks:
+  # Created by the private playbook; the API container joins it so it can
+  # push traces to Tempo by service name instead of a hard-coded IP.
+  shuttlevn:
+    external: true
 
 secrets:
   grafana_admin_password:

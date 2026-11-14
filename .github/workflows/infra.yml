@@ -1,0 +1,143 @@
+name: Infrastructure
+
+# Infrastructure changes are not application changes: a push must never apply
+# AWS resources by itself. Push runs fmt/validate/plan only. Apply runs on
+# workflow_dispatch and waits on the `production` Environment approval.
+on:
+  push:
+    branches: [main]
+    paths:
+      - infrastructure/terraform-aws/**
+      - .github/workflows/infra.yml
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Apply the planned changes after approval'
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # 1.10+ is required: the backend block uses use_lockfile for native S3
+  # state locking instead of DynamoDB.
+  TF_VERSION: '1.16.3'
+  TF_IN_AUTOMATION: 'true'
+  AWS_REGION: ap-southeast-1
+  TF_ROOT: infrastructure/terraform-aws
+
+permissions:
+  contents: read
+  # Required by configure-aws-credentials: it exchanges this job's OIDC token
+  # for the role, so no long-lived AWS keys exist in the repository.
+  id-token: write
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_ROOT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform fmt
+        run: terraform fmt -recursive -check -diff
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        env:
+          TF_VAR_project_name: ${{ vars.TF_VAR_PROJECT_NAME }}
+          TF_VAR_ami_id: ${{ vars.TF_VAR_AMI_ID }}
+          TF_VAR_ssh_allowed_cidr: ${{ vars.TF_VAR_SSH_ALLOWED_CIDR }}
+          TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+          TF_VAR_enable_nat_gateway: ${{ vars.TF_VAR_ENABLE_NAT_GATEWAY }}
+        run: |
+          terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Publish plan
+        run: |
+          {
+            echo '### Terraform plan'
+            echo '```'
+            head -c 60000 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: |
+            ${{ env.TF_ROOT }}/tfplan
+            ${{ env.TF_ROOT }}/plan.txt
+          retention-days: 5
+
+  apply:
+    name: Apply
+    # Manual dispatch with action=apply, or a plan-only push never reaches it.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.action == 'apply'
+    needs: plan
+    runs-on: ubuntu-latest
+    # The approval gate. Configure required reviewers on this Environment in
+    # repository settings; the job blocks until someone approves.
+    environment: production
+    defaults:
+      run:
+        working-directory: ${{ env.TF_ROOT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.TF_ROOT }}
+
+      # The plan was produced by the plan job against the same commit and the
+      # same locked state, so applying it is the reviewed change, not a
+      # re-plan that could differ.
+      - name: Terraform apply
+        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan
+
+      - name: Publish outputs
+        run: |
+          {
+            echo '### Terraform outputs'
+            echo '```json'
+            terraform output -json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

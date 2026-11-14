@@ -1,0 +1,13 @@
+# Repository the runner on the public host deploys. The runner is registered
+# against this repo, so it is labelled public_ec2-runner and used by
+# shuttle-vn-frontend/.github/workflows/ci-cd.yml.
+runner_repo: vietng322611/shuttle-vn-frontend
+
+# The only hostname this edge answers for. Anything else is refused, which is
+# what stops a request to the bare public IP from reaching the application.
+shuttlevn_domain: shuttlevn.murasaki.id.vn
+
+# Cloudflare Origin CA certificate and key, kept outside both repositories on
+# the operator machine. main.tf restricts ingress to Cloudflare ranges, so
+# these are the only clients that can complete a handshake.
+shuttlevn_tls_source: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/shuttlevn/tls"

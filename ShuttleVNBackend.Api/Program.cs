@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using dotenv.net;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using ShuttleVNBackend.Api;
@@ -34,6 +35,8 @@ builder.Services
         );
     });
 
+builder.Services.AddHealthChecks();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -49,6 +52,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<PendingBookingExpiryService>();
 builder.Services.AddAssistantRateLimit();
+builder.Services.AddObservability(builder.Configuration);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -59,6 +63,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/auth/logout";
         options.Cookie.HttpOnly = true;
         options.Cookie.Name = "shuttlevn.auth";
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.SlidingExpiration = true;
         options.Events.OnRedirectToLogin = context =>
         {
@@ -92,6 +98,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
+    KnownIPNetworks = { },
+    KnownProxies = { },
+});
+
 app.UseCors("Frontend");
 
 app.UseHttpsRedirection();
@@ -101,10 +114,12 @@ app.UseRateLimiter();
 
 app.MapControllers();
 
-using var scope = app.Services.CreateScope();
+app.MapHealthChecks("/health");
 
-var db = scope.ServiceProvider.GetRequiredService<ShuttleVnDbContext>();
-await db.Database.MigrateAsync();
+if (app.Configuration.GetValue<bool>("Otel:Enabled"))
+{
+    app.MapPrometheusScrapingEndpoint();
+}
 
 await app.SeedAdminAccountAsync();
 

@@ -56,6 +56,11 @@ env/
 !.env.example
 
 # =========================
+# Ansible secrets
+# =========================
+**/group_vars/**/secrets.yml
+
+# =========================
 # Logs
 # =========================
 Logs/
@@ -95,6 +100,7 @@ TestResults/
 *.tfstate
 *.tfstate.*
 *.tfplan
+tfplan
 crash.log
 crash.*.log
 *.tfvars
@@ -110,3 +116,5 @@ crash.*.log
 
 # Sonarqube
 .sonarqube/
+
+.temp/
