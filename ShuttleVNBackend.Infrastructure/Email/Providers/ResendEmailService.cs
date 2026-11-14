@@ -14,11 +14,11 @@ public sealed class ResendEmailService(HttpClient httpClient, IOptions<EmailServ
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
-        
+
         var settings = options.Value;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(settings.TimeoutSeconds));
-        
+
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
         request.Headers.UserAgent.ParseAdd("ShuttleVN/1.0");

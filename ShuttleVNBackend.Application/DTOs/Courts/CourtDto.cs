@@ -13,8 +13,10 @@ public record CourtDto(
 {
     public static CourtDto FromEntity(BadmintonCourt c, bool isInUse)
     {
+        // Name is only null on soft-deleted courts (CK_Court_DeletedName),
+        // and the DTO contract has no nullable name.
         return new CourtDto(
-            c.CourtId, c.Name, c.Description, c.Status.ToString(),
+            c.CourtId, c.Name ?? "DELETED", c.Description, c.Status.ToString(),
             isInUse, c.CreatedAt, c.UpdatedAt);
     }
 }

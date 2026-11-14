@@ -68,7 +68,7 @@ public class AssistantController(AssistantChatService assistantChatService) : Co
         {
             await WriteEventAsync(
                 "error",
-                JsonSerializer.Serialize(new {code = ex.Code, message = ex.Message }, StreamJson), ct);
+                JsonSerializer.Serialize(new { code = ex.Code, message = ex.Message }, StreamJson), ct);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {

@@ -15,17 +15,17 @@ public sealed class SmtpEmailService(IOptions<EmailServiceOptions> options) : IE
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
-        
+
         var settings = options.Value;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(settings.TimeoutSeconds));
-        
+
         using var email = new MimeMessage();
         email.From.Add(new MailboxAddress(settings.FromName, settings.FromAddress));
         email.To.Add(new MailboxAddress(string.Empty, message.To));
         email.Subject = message.Subject;
         email.Body = new TextPart(message.IsHtml ? "html" : "plain") { Text = message.Body };
-        
+
         using var client = new SmtpClient();
         client.Timeout = settings.TimeoutSeconds * 1000;
         try

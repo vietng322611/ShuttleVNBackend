@@ -34,7 +34,8 @@ public sealed class BookingLifecycle(
                 snapshot.CourtId,
                 targetCourtId ?? snapshot.CourtId
             }.Distinct().Order()
-        ) {
+        )
+        {
             await unitOfWork.LockCourtAsync(courtId, ct);
         }
         await unitOfWork.LockBookingAsync(bookingId, ct);
@@ -47,11 +48,12 @@ public sealed class BookingLifecycle(
     }
 
     public Task<bool> SettleAsync(Guid bookingId, CancellationToken ct = default)
-        => unitOfWork.ExecuteInTransactionAsync(async token => {
-                var booking = await LockAsync(bookingId, ct: token);
-                Authorize(booking);
-                return await SettleLockedAsync(booking, token);
-            }, ct);
+        => unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            var booking = await LockAsync(bookingId, ct: token);
+            Authorize(booking);
+            return await SettleLockedAsync(booking, token);
+        }, ct);
 
     public async Task<bool> SettleLockedAsync(Booking booking, CancellationToken ct = default)
     {

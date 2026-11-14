@@ -129,12 +129,15 @@ public class BookingController(
     [HttpGet("code/{code}")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<BookingDto>>> GetBookingByCode(
-        [FromRoute] string code, 
+        [FromRoute] string code,
         CancellationToken ct = default)
     {
         var result = await bookingService.GetBookingByCodeAsync(code, ct);
-        if (result == null) 
-            return NotFound(ApiResponseFactory.Failure<BookingDto>("Không tìm thấy đơn đặt sân"));;
+        if (result == null)
+        {
+            return NotFound(ApiResponseFactory.Failure<BookingDto>("Không tìm thấy đơn đặt sân"));
+        }
+
         return Ok(ApiResponseFactory.Success(result));
     }
 
