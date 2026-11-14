@@ -1,3 +1,28 @@
+# Session Manager is the only way in for automation: the hosts accept SSH from
+# one operator IP, which a CI runner does not have.
+resource "aws_iam_role" "ssm" {
+  name = "${var.name}-ssm"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "sts:AssumeRole"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ssm" {
+  name = "${var.name}-ssm"
+  role = aws_iam_role.ssm.name
+}
+
 resource "aws_instance" "this" {
   ami                         = var.ami_id
   instance_type               = var.instance_type
@@ -5,6 +30,7 @@ resource "aws_instance" "this" {
   vpc_security_group_ids      = var.security_group_ids
   associate_public_ip_address = var.assign_public_ip
   key_name                    = var.key_name
+  iam_instance_profile        = aws_iam_instance_profile.ssm.name
 
   root_block_device {
     volume_type           = "gp3"

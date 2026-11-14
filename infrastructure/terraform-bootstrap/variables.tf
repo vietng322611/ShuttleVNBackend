@@ -3,6 +3,11 @@ variable "region" {
   default = "ap-southeast-1"
 }
 
+variable "project_name" {
+  type    = string
+  default = "shuttlevn"
+}
+
 variable "github_repository" {
   type        = string
   description = "owner/repo allowed to assume the deploy role via OIDC."

@@ -1,0 +1,160 @@
+name: Runner registration
+
+# Registration tokens expire in about an hour, so a GitHub App mints a fresh
+# one per run. The App needs Administration: write on both repositories;
+# configure vars.GH_APP_ID and secrets.GH_APP_PRIVATE_KEY first.
+#
+# Installation goes over SSM, so this runs on a GitHub-hosted machine and needs
+# no SSH key and no pre-existing self-hosted runner. The instances must carry
+# the <name>-ssm instance profile that the compute module attaches, so one
+# `infra.yml action=apply` has to have run first.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: runner-registration
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  RUNNER_VERSION: 2.338.2
+
+permissions:
+  contents: read
+  # Required by configure-aws-credentials to assume the Terraform role via OIDC.
+  id-token: write
+
+jobs:
+  register:
+    name: Register ${{ matrix.host }} runner
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: shuttlevn-private
+            repo: ShuttleVNBackend
+            label: private_ec2-runner
+          - host: shuttlevn-public
+            repo: shuttle-vn-frontend
+            label: public_ec2-runner
+
+    steps:
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app
+        with:
+          app-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.repo }}
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve the instance
+        id: target
+        run: |
+          set -euo pipefail
+          id=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${{ matrix.host }}" \
+                      "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text)
+          test -n "$id"
+          echo "instance-id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the SSM agent
+        env:
+          INSTANCE_ID: ${{ steps.target.outputs.instance-id }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            if aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query 'InstanceInformationList[].InstanceId' \
+              --output text | grep -q .; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "SSM agent never registered for ${{ matrix.host }}." >&2
+          echo "The instance profile is probably missing; run infra.yml action=apply." >&2
+          exit 1
+
+      # Mirrors infrastructure/ansible/playbooks/runners.yml. An existing
+      # actions.runner service short-circuits the script, so re-running is a
+      # no-op and never reuses a stale token.
+      - name: Install the runner over SSM
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ matrix.repo }}
+          INSTANCE_ID: ${{ steps.target.outputs.instance-id }}
+          RUNNER_LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          token=$(curl -sf -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$OWNER/$REPO/actions/runners/registration-token" \
+            | jq -r .token)
+          test -n "$token"
+          test "$token" != "null"
+
+          script=$(cat <<EOF
+          set -euo pipefail
+          units=\$(systemctl list-units --all --quiet --type=service 2>/dev/null || true)
+          case "\$units" in
+            *actions.runner.*) echo "runner already installed"; exit 0 ;;
+          esac
+          id -u ghrunner >/dev/null 2>&1 || useradd -m -s /bin/bash ghrunner
+          getent group docker >/dev/null || groupadd docker
+          usermod -aG docker ghrunner
+          printf 'ghrunner ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/ghrunner
+          chmod 0440 /etc/sudoers.d/ghrunner
+          /usr/sbin/visudo -cf /etc/sudoers.d/ghrunner
+          mkdir -p /opt/actions-runner
+          cd /opt/actions-runner
+          url="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz"
+          curl -fsSL -o runner.tar.gz "\$url"
+          tar xzf runner.tar.gz
+          rm -f runner.tar.gz
+          chown -R ghrunner:ghrunner /opt/actions-runner
+          sudo -u ghrunner ./config.sh --url "https://github.com/$OWNER/$REPO" --token "$token" --labels "$RUNNER_LABEL" --unattended --replace
+          ./svc.sh install ghrunner
+          ./svc.sh start
+          EOF
+          )
+
+          jq -n --arg script "$script" \
+            '{DocumentName:"AWS-RunShellScript",TimeoutSeconds:900,
+              Parameters:{commands:[$script]}}' > /tmp/send-command.json
+
+          command_id=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --comment "Register $OWNER/$REPO runner" \
+            --cli-input-json file:///tmp/send-command.json \
+            --query Command.CommandId --output text)
+
+          status=Pending
+          for _ in $(seq 1 90); do
+            status=$(aws ssm get-command-invocation \
+              --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in
+              Success|Cancelled|TimedOut|Failed|Cancelling) break ;;
+            esac
+            sleep 10
+          done
+
+          aws ssm get-command-invocation \
+            --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+            --query '{Status:Status,Out:StandardOutputContent,Err:StandardErrorContent}' \
+            --output json
+
+          rm -f /tmp/send-command.json
+          test "$status" = "Success"

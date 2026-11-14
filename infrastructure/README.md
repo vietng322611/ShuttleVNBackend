@@ -67,7 +67,9 @@ The bucket name is derived from the account ID. It must match the `backend "s3"`
 block in `infrastructure/terraform-aws/versions.tf`; the bucket is not looked up at
 runtime, so a mismatch fails at `terraform init`.
 
-Re-apply the bootstrap whenever the trusted branch or environment changes.
+Re-apply the bootstrap whenever the trusted branch or environment changes, or
+after the compute module starts creating IAM resources — the deploy role only
+gets the narrow IAM and SSM permissions that root needs.
 
 ## 2. Provision AWS
 
@@ -125,21 +127,21 @@ blank in `api.env`, so a partial environment fails before the container restarts
 
 ### Register the GitHub runners
 
-`runners.yml` is not part of `site.yml`: registration needs a repository-scoped
-token that expires in about an hour and is issued by hand. Each host runs a runner
-scoped to its own repository, labelled `<inventory_hostname>-runner`.
+`runners.yml` is not part of `site.yml`. `.github/workflows/runners.yml` mints a
+registration token with a GitHub App and installs the runner over SSM, so it runs
+on a GitHub-hosted machine with no SSH key and no pre-existing runner. It needs
+`vars.GH_APP_ID` and `secrets.GH_APP_PRIVATE_KEY`, and the App must be installed
+on both repositories with `Administration: write`.
 
-```bash
-~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
-  -e github_runner_token=<backend-repo-token> --limit private
-
-~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
-  -e github_runner_token=<frontend-repo-token> --limit public
-```
+The instances carry the `<name>-ssm` instance profile from the compute module, so
+Session Manager can reach them without opening SSH. Run `infra.yml` with
+`action=apply` once after that module change lands; until the profile is attached,
+the workflow fails at the SSM agent check and says so.
 
 Re-running after registration is a no-op. The runner user joins the `docker` group,
 which is root-equivalent on the host; acceptable for single-tenant course hosts,
-not for a shared deployment.
+not for a shared deployment. `playbooks/runners.yml` still exists as the SSH
+fallback for a host whose SSM agent is broken.
 
 ## 4. DNS and TLS
 
@@ -164,6 +166,7 @@ Repository variables:
 | `TF_VAR_AMI_ID` | Same as Terraform `ami_id`. |
 | `TF_VAR_SSH_ALLOWED_CIDR` | Same as Terraform `ssh_allowed_cidr`. |
 | `TF_VAR_ENABLE_NAT_GATEWAY` | `true` / `false`. |
+| `GH_APP_ID` | GitHub App ID. Not sensitive. |
 
 Repository secrets:
 
@@ -177,6 +180,7 @@ Repository secrets:
 | `TLS_PRIVATE_KEY` | Origin certificate key. |
 | `SONAR_TOKEN` | SonarQube Cloud token. |
 | `SONAR_ORGANIZATION` | SonarQube Cloud organization key. |
+| `GH_APP_PRIVATE_KEY` | GitHub App private key, used to mint runner registration tokens. |
 
 Environment `production` with at least one required reviewer. The infrastructure
 apply job runs inside it, so no AWS resource changes without approval.
@@ -191,7 +195,9 @@ access keys in GitHub.
 | `ci-cd.yml` | Push to `main` touching application projects | SonarQube Cloud scan, image to GHCR, deploy on the private runner, health check. |
 | `infra.yml` | Push to `main` touching `infrastructure/terraform-aws/**` | `fmt`, `validate`, `plan`. Uploads `tfplan`. Never applies. |
 | `infra.yml` | `workflow_dispatch` with `action=apply` | Downloads the plan and applies it after `production` approval. |
+| `infra.yml` | `workflow_dispatch` with `action=destroy` | Tears the AWS root down after `production` approval. |
 | `config.yml` | `workflow_dispatch` | Runs Ansible converge, optionally `--check --diff` or limited to one host group. |
+| `runners.yml` | `workflow_dispatch` | Mints registration tokens with a GitHub App and installs both self-hosted runners over SSM. |
 
 Application deploys never provision infrastructure, and infrastructure changes
 never deploy application images.
@@ -211,6 +217,17 @@ terraform apply -var enable_nat_gateway=false
 `terraform destroy` removes every resource in the AWS root. It does not touch the
 database, the state bucket, the OIDC role, or the DNS record. After a rebuild,
 re-point the Cloudflare `A` record at the new Elastic IP.
+
+Destroy runs from `infra.yml` with `action=destroy`, behind the same `production`
+approval gate. Running `action=plan`/`action=apply` instead never destroys
+anything. The instances are deleted with their root volumes and the runners on
+them die with no way to unregister from inside, so delete the stale runner entries
+afterwards:
+
+```bash
+gh api -X DELETE /repos/<owner>/<repo>/actions/runners/$(gh api \
+  /repos/<owner>/<repo>/actions/runners --jq '.runners[0].id')
+```
 
 ## Verifying a deployment
 

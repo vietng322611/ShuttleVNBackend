@@ -133,3 +133,70 @@ resource "aws_iam_role_policy" "state" {
   role   = aws_iam_role.terraform.id
   policy = data.aws_iam_policy_document.state.json
 }
+
+# The compute module attaches an instance profile so Session Manager can drive
+# runner registration. EC2FullAccess does not cover IAM or SSM, and the scope
+# is narrowed to the names and documents the workflows actually use.
+data "aws_iam_policy_document" "compute_iam" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:GetRole",
+      "iam:PassRole",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:ListAttachedRolePolicies",
+      "iam:ListRolePolicies",
+      "iam:ListInstanceProfilesForRole",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:UpdateRoleDescription",
+      "iam:CreateInstanceProfile",
+      "iam:DeleteInstanceProfile",
+      "iam:GetInstanceProfile",
+      "iam:AddRoleToInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:TagInstanceProfile",
+      "iam:UntagInstanceProfile",
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-*-ssm",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${var.project_name}-*-ssm",
+    ]
+  }
+
+  # Reading an attached AWS-managed policy, so Terraform can detect drift.
+  statement {
+    effect    = "Allow"
+    actions   = ["iam:GetPolicy", "iam:GetPolicyVersion"]
+    resources = ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
+  }
+
+  statement {
+    effect  = "Allow"
+    actions = ["ssm:SendCommand"]
+    resources = [
+      "arn:aws:ssm:*::document/AWS-RunShellScript",
+      "arn:aws:ec2:*:${data.aws_caller_identity.current.account_id}:instance/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetCommandInvocation",
+      "ssm:ListCommandInvocations",
+      "ssm:DescribeInstanceInformation",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "compute_iam" {
+  name   = "shuttlevn-terraform-compute-iam"
+  role   = aws_iam_role.terraform.id
+  policy = data.aws_iam_policy_document.compute_iam.json
+}

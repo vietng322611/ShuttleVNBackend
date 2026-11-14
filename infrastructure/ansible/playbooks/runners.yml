@@ -3,13 +3,13 @@
 # host deploys the API, the public host deploys the frontend. Each runner is
 # scoped to its own repository and labelled <inventory_hostname>-runner.
 #
-# Registration tokens are repository-scoped and expire in ~1 hour, so they
-# cannot live in group_vars. Pass one token per group:
+# Kept as the SSH fallback. .github/workflows/runners.yml does the same work
+# over SSM and needs no key, so use that unless a host's SSM agent is broken.
+#
+# Registration tokens expire in ~1 hour. Pass one per group:
 #
 #   ~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
-#     -e github_runner_token=<backend-repo-token> --limit private \
-#     && ~/.ansible-venv/bin/ansible-playbook playbooks/runners.yml \
-#     -e github_runner_token=<frontend-repo-token> --limit public
+#     -e @/tmp/backend-vars.json --limit private
 #
 # Re-running after registration is a no-op: the service unit check short
 # circuits before any download.
