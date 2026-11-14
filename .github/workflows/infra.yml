@@ -38,7 +38,8 @@ permissions:
 jobs:
   plan:
     name: Plan
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest: the float moves on GitHub's schedule.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: ${{ env.TF_ROOT }}
@@ -99,7 +100,7 @@ jobs:
       github.event_name == 'workflow_dispatch' &&
       inputs.action == 'apply'
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The approval gate. Configure required reviewers on this Environment in
     # repository settings; the job blocks until someone approves.
     environment: production
