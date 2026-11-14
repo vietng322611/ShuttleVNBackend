@@ -13,6 +13,11 @@ public static class ObservabilityExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        if (!configuration.GetValue<bool>("Otel:Enabled"))
+        {
+            return services;
+        }
+
         var otlpEndpoint = configuration["Otel:Endpoint"];
 
         services.AddOpenTelemetry()

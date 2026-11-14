@@ -115,7 +115,11 @@ app.UseRateLimiter();
 app.MapControllers();
 
 app.MapHealthChecks("/health");
-app.MapPrometheusScrapingEndpoint();
+
+if (app.Configuration.GetValue<bool>("Otel:Enabled"))
+{
+    app.MapPrometheusScrapingEndpoint();
+}
 
 await app.SeedAdminAccountAsync();
 
