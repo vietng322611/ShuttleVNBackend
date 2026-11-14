@@ -78,15 +78,14 @@ jobs:
           /d:sonar.token="$SONAR_TOKEN"
           /d:sonar.host.url="https://sonarcloud.io"
           /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+          /d:sonar.exclusions="**/Migrations/**,**/*.Designer.cs,**/*ModelSnapshot.cs"
           /d:sonar.qualitygate.wait=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build
         run: dotnet build ShuttleVNBackend.slnx --no-restore --configuration Release
 
-      # The solution currently has no test projects, so this step is best
-      # effort until the Application tests land.
+      # Feeds the opencover report that SonarQube Cloud reads for coverage.
       - name: Test
-        continue-on-error: true
         run: |
           dotnet test ShuttleVNBackend.slnx --no-build --configuration Release \
             --collect:"XPlat Code Coverage" --results-directory TestResults \
