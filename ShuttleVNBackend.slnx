@@ -4,4 +4,5 @@
     <Project Path="ShuttleVNBackend.Core/ShuttleVNBackend.Core.csproj"/>
     <Project Path="ShuttleVNBackend.Infrastructure/ShuttleVNBackend.Infrastructure.csproj"/>
     <Project Path="tests/ShuttleVNBackend.Application.Tests/ShuttleVNBackend.Application.Tests.csproj"/>
+    <Project Path="tests/ShuttleVNBackend.Core.Tests/ShuttleVNBackend.Core.Tests.csproj"/>
 </Solution>
