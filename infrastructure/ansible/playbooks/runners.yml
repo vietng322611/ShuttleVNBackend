@@ -16,7 +16,7 @@
 #
 # SECURITY: both repositories are public. A fork PR must never reach a
 # self-hosted runner, so:
-#   - the workflows are triggered on push to devops, never on
+#   - the workflows are triggered on push to main, never on
 #     pull_request / pull_request_target,
 #   - GitHub's "Require approval for all outside collaborators" setting
 #     stays enabled for Actions.

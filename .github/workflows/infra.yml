@@ -5,7 +5,7 @@ name: Infrastructure
 # workflow_dispatch and waits on the `production` Environment approval.
 on:
   push:
-    branches: [devops]
+    branches: [main]
     paths:
       - infrastructure/terraform-aws/**
       - .github/workflows/infra.yml

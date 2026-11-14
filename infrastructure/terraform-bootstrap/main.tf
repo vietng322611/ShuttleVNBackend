@@ -85,7 +85,7 @@ data "aws_iam_policy_document" "assume_role" {
     }
 
     # GitHub sub claims now carry immutable numeric ids, e.g.
-    # repo:owner@90992374/repo@1320291487:ref:refs/heads/devops, so only the
+    # repo:owner@90992374/repo@1320291487:ref:refs/heads/main, so only the
     # id segments are wildcarded.
     condition {
       test     = "StringLike"

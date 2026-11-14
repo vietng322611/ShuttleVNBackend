@@ -11,7 +11,7 @@ variable "github_repository" {
 variable "github_branch" {
   type        = string
   description = "Branch whose pushes may assume the deploy role."
-  default     = "devops"
+  default     = "main"
 }
 
 variable "github_environment" {
