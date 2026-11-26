@@ -124,7 +124,7 @@ public sealed class OpenAiCompatibleChatClient(
                     type = "function",
                     function = new { name = t.Name, description = t.Description, parameters = t.Parameters }
                 }).ToList(),
-            tool_choice = request.Tools.Count == 0 ? null : "auto"
+            tool_choice = request.Tools.Count == 0 ? null : request.ToolChoice
         }, Json)!.AsObject();
 
         foreach (var (key, value) in _extraBody)
