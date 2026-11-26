@@ -1,6 +1,6 @@
 # Thiết kế dữ liệu — Hệ thống đặt sân cầu lông
 
-**Phiên bản 2.1 · 30/10/2026**
+**Phiên bản 2.2 · 31/10/2026**
 
 Căn cứ: SRS 2.0 và Use Case 2.0. Tài liệu này mô tả cấu trúc dữ liệu; quy tắc nghiệp vụ (BR-xx) nằm trong SRS và chỉ được dẫn chiếu ở đây, không nhắc lại.
 
@@ -34,6 +34,57 @@ Căn cứ: SRS 2.0 và Use Case 2.0. Tài liệu này mô tả cấu trúc dữ 
 
 SQL mẫu dùng tên logic, không phải script migration; schema EF hiện hành dùng bảng `Invoices` và cột PascalCase. Ràng buộc liên bảng ở mục 7 là yêu cầu thiết kế, không khẳng định mọi trigger đã có trong migration.
 
+### 1.1 Tên vật lý trong PostgreSQL
+
+EF Core đặt tên bảng theo `DbSet` và giữ nguyên PascalCase cho cột. Tài liệu dùng tên logic (camelCase) ở các bảng entity; đối chiếu vật lý như sau.
+
+| Tên logic | Bảng vật lý |
+| --- | --- |
+| `UserAccount` | `UserAccounts` |
+| `Employee` | `Employees` |
+| `Customer` | `Customers` |
+| `VerificationCode` | `VerificationCodes` |
+| `BadmintonCourt` | `BadmintonCourts` |
+| `CourtSchedule` | `CourtSchedules` |
+| `PricingRule` | `PricingRules` |
+| `Booking` | `Bookings` |
+| `BookingPriceSegment` | `BookingPriceSegments` |
+| `BookingStatusHistory` | `BookingStatusHistories` |
+| `Invoice` | `Invoices` |
+| `InvoiceDailyCounter` | `InvoiceDailyCounters` |
+| `Audit` | `Audits` |
+| `IdempotencyRequest` | `IdempotencyRequests` |
+| `Notification` | `Notifications` |
+
+Cột dùng PascalCase (`BookingId`, `StartTime`, `ChangedByEmployee`), khóa ngoại `FK_<Bảng>_<Bảng>_<Cột>`, chỉ mục `IX_<Bảng>_<Cột>`, ràng buộc CHECK do thiết kế đặt tên tường minh (`ck_`).
+
+### 1.2 Đối tượng không ghi Audit
+
+Thuộc tính `[NoAudit]` loại entity khỏi `AuditInterceptor`: `Audit`, `IdempotencyRequest`, `VerificationCode`, `InvoiceDailyCounter`, `BookingPriceSegment`. Ở `UserAccount`, chỉ thuộc tính `PasswordHash` mang `[NoAudit]`; phần còn lại của tài khoản vẫn được ghi nhật ký.
+
+### 1.3 Migration hiện hành
+
+Thư mục `ShuttleVNBackend.Infrastructure/Migrations`, áp dụng theo thứ tự:
+
+| Migration | Nội dung chính |
+| --- | --- |
+| `20260914150524_InitialCreate` | Toàn bộ schema ban đầu; bật `btree_gist`; tạo `ex_bookings_no_overlap`, `ex_court_schedules_no_overlap`. |
+| `20260916132919_RemovePhantomShadowFKs` | Bỏ khóa ngoại bóng (shadow FK) do cấu hình quan hệ sai. |
+| `20260923115223_AllowNullEmployeeAccountAndEmail` | `Employee.AccountId` và `Employee.Email` cho phép `NULL`. |
+| `20260928125648_RenameCourtsToBadmintonCourts` | Đổi bảng `Courts` → `BadmintonCourts`. |
+| `20261001081917_UpdateAuditsAddIndexBadmintonCourtName` | `Audits.OldValue/NewValue` sang `jsonb`; giới hạn độ dài `EntityName/EntityId/Action`; thêm `Audits.ActorType`; UNIQUE `IX_BadmintonCourts_Name`; chỉ mục `Audits.CreatedAt`, `(EntityName, EntityId)`. |
+| `20261001094018_UpdateAuditsTable` | Tinh chỉnh bảng `Audits`. |
+| `20261004065530_FixAuditsTableSchema` | Tách tác nhân nhật ký thành `EmployeeId`/`CustomerId`. |
+| `20261008150143_DropPricingRuleEndTime` | Bỏ `PricingRules.EndTime` và `ex_pricing_rules_no_overlap` (BR-03). |
+| `20261010081932_MatchNewDatabaseMd` | Đồng bộ schema với tài liệu dữ liệu. |
+| `20261013024818_AddHistoryActorInvoicePaidByDailyCounter` | Lịch sử trạng thái có tác nhân; hóa đơn có người thu; bộ đếm cấp mã hóa đơn theo ngày. |
+| `20261015044131_UpdatePendingEntities` | Cập nhật `IdempotencyRequests`, `Notifications`. |
+| `20261015062400_SyncChanges` | Migration rỗng, giữ mốc đồng bộ snapshot. |
+| `20261020130000_ConvertBookingHistoryActorTypeToString` | `BookingStatusHistories.ActorType` lưu chuỗi. |
+| `20261023120000_ReconcileHistoryInvoiceSchema` | Đối chiếu schema lịch sử và hóa đơn. |
+| `20261027080753_AddReschedulingAndInvoiceLifecycle` | Người lập `NULL`; enum chuỗi; FK/UNIQUE `ReplacesInvoiceId`; CHECK `ck_invoice_payment_group`, `ck_invoice_refund_group`, `ck_invoice_cancellation_group`. |
+| `20261027122651_AddInvoicePaidAmount` | Thêm `Invoices.PaidAmount` + backfill đã duyệt + CHECK `ck_invoice_paid_amount`. |
+
 ## 2. Tài khoản và người dùng
 
 Quy tắc áp dụng: BR-10, BR-11, BR-12, BR-15, BR-18, BR-26, BR-27 (SRS mục 3.5).
@@ -63,7 +114,7 @@ Tài khoản khách do nhân viên tạo bắt đầu ở `PENDING_ACTIVATION` v
 | accountId | uuid, NULL | FK → `UserAccount`, UNIQUE khi có, `ON DELETE SET NULL`. Khi tạo nhân viên phải có tài khoản; `NULL` sau khi xóa tài khoản |
 | fullName | string | Bắt buộc, không chỉ khoảng trắng |
 | phone | string | Theo BR-26; không UNIQUE |
-| email | string | Bắt buộc, chuẩn hóa, UNIQUE, đồng bộ `loginEmail`, không đổi |
+| email | string, NULL | Chuẩn hóa khi có; UNIQUE có điều kiện `"Email" IS NOT NULL`; đồng bộ `loginEmail` khi hồ sơ còn tài khoản; không đổi khi đã gán |
 | isAdmin | bool | Quyền QTV; không có hiệu lực khi hồ sơ không còn tài khoản `ACTIVE` |
 | createdAt | DateTime UTC | |
 | updatedAt | DateTime UTC | |
@@ -112,20 +163,23 @@ Không cascade xóa hồ sơ hay giao dịch. Nhật ký, `BookingStatusHistory`
 ### 2.3 Constraints và enums
 
 ```sql
-CREATE UNIQUE INDEX "UX_UserAccount_LoginEmail"
-  ON "UserAccount" ("loginEmail");
-CREATE UNIQUE INDEX "UX_Employee_Account" ON "Employee" ("accountId");
-CREATE UNIQUE INDEX "UX_Employee_Email" ON "Employee" ("email");
-CREATE UNIQUE INDEX "UX_Customer_Account" ON "Customer" ("accountId")
-  WHERE "accountId" IS NOT NULL;
-CREATE UNIQUE INDEX "UX_Customer_Email" ON "Customer" ("email");
-ALTER TABLE "Employee" ADD CONSTRAINT "FK_Employee_UserAccount"
-  FOREIGN KEY ("accountId") REFERENCES "UserAccount" ("accountId") ON DELETE SET NULL;
-ALTER TABLE "Customer" ADD CONSTRAINT "FK_Customer_UserAccount"
-  FOREIGN KEY ("accountId") REFERENCES "UserAccount" ("accountId") ON DELETE SET NULL;
-ALTER TABLE "VerificationCode" ADD CONSTRAINT "PK_VerificationCode"
-  PRIMARY KEY ("email", "type");
+CREATE UNIQUE INDEX "IX_UserAccounts_LoginEmail"
+  ON "UserAccounts" ("LoginEmail");
+CREATE UNIQUE INDEX "IX_Employees_AccountId" ON "Employees" ("AccountId");
+CREATE UNIQUE INDEX "IX_Employees_Email" ON "Employees" ("Email")
+  WHERE "Email" IS NOT NULL;
+CREATE UNIQUE INDEX "IX_Customers_AccountId" ON "Customers" ("AccountId");
+CREATE UNIQUE INDEX "IX_Customers_Email" ON "Customers" ("Email");
+CREATE INDEX "IX_Customers_Phone" ON "Customers" ("Phone");
+ALTER TABLE "Employees" ADD CONSTRAINT "FK_Employees_UserAccounts_AccountId"
+  FOREIGN KEY ("AccountId") REFERENCES "UserAccounts" ("AccountId") ON DELETE SET NULL;
+ALTER TABLE "Customers" ADD CONSTRAINT "FK_Customers_UserAccounts_AccountId"
+  FOREIGN KEY ("AccountId") REFERENCES "UserAccounts" ("AccountId") ON DELETE SET NULL;
+ALTER TABLE "VerificationCodes" ADD CONSTRAINT "PK_VerificationCodes"
+  PRIMARY KEY ("Email", "Type");
 ```
+
+Ghi chú hiện trạng: `Employees.AccountId` cũng mang chỉ mục duy nhất nhưng **không** có điều kiện lọc; PostgreSQL cho phép nhiều `NULL` nên nhiều hồ sơ đã xóa tài khoản vẫn hợp lệ. `Customers.AccountId` không cần điều kiện lọc vì lý do tương tự. UNIQUE trên `Email` của khách áp cho cả hồ sơ chưa có tài khoản.
 
 - Chặn UPDATE làm đổi `UserAccount.loginEmail` hoặc `Customer/Employee.email` ở cơ sở dữ liệu; máy chủ từ chối yêu cầu đổi email (BR-18).
 - CHECK: email đã trim, chữ thường, không rỗng; họ tên không chỉ khoảng trắng; số điện thoại theo BR-26.
@@ -184,42 +238,30 @@ Quy tắc áp dụng: BR-01, BR-03, BR-16, BR-19, BR-25 (SRS mục 3.2).
 | createdAt | DateTime UTC | |
 | updatedAt | DateTime UTC | |
 
-Không thêm `endTime` vào `PricingRule` (BR-03). Khi thay toàn bộ bảng giá, khóa lịch tương ứng, kiểm tra lại lịch và giá hiện hành, thay danh sách mốc và ghi nhật ký trong cùng giao dịch. Khóa dòng lịch cũng bảo vệ cấu hình lịch và giá của ngày đó.
+Mốc giá **không** có `endTime`: khoảng hiệu lực của mốc là `[startTime, mốc kế tiếp)` và mốc cuối kéo tới `closeTime`, đúng như migration `20261008150143_DropPricingRuleEndTime` và BR-03. Khi thay toàn bộ bảng giá, khóa lịch tương ứng, kiểm tra lại lịch và giá hiện hành, thay danh sách mốc và ghi nhật ký trong cùng giao dịch. Khóa dòng lịch cũng bảo vệ cấu hình lịch và giá của ngày đó.
 
 ### 3.2 Constraints
 
 ```sql
-CREATE UNIQUE INDEX "UX_BadmintonCourt_Name"
-  ON "BadmintonCourt" (lower(btrim("name"))) WHERE "name" IS NOT NULL;
-ALTER TABLE "BadmintonCourt" ADD CONSTRAINT "CK_Court_DeletedName"
-  CHECK (
-    ("status" = 'Deleted' AND "name" IS NULL AND "deletedAt" IS NOT NULL)
-    OR
-    ("status" <> 'Deleted' AND "name" IS NOT NULL
-     AND "name" = btrim("name") AND length("name") > 0 AND "deletedAt" IS NULL)
+CREATE UNIQUE INDEX "IX_BadmintonCourts_Name" ON "BadmintonCourts" ("Name");
+ALTER TABLE "CourtSchedules" ADD CONSTRAINT "UQ_CourtSchedule_Start"
+  UNIQUE ("CourtId", "DayOfWeek", "OpenTime");
+ALTER TABLE "CourtSchedules" ADD CONSTRAINT "ex_court_schedules_no_overlap"
+  EXCLUDE USING gist (
+    "CourtId" WITH =,
+    "DayOfWeek" WITH =,
+    (tsrange(DATE '2000-01-01' + "OpenTime", DATE '2000-01-01' + "CloseTime")) WITH &&
   );
-ALTER TABLE "CourtSchedule" ADD CONSTRAINT "UQ_CourtSchedule_Day"
-  UNIQUE ("courtId", "dayOfWeek");
-ALTER TABLE "CourtSchedule" ADD CONSTRAINT "CK_CourtSchedule_Hours"
-  CHECK (
-    "dayOfWeek" BETWEEN 1 AND 7 AND "openTime" < "closeTime"
-    AND EXTRACT(SECOND FROM "openTime") = 0
-    AND EXTRACT(SECOND FROM "closeTime") = 0
-    AND EXTRACT(MINUTE FROM "openTime") IN (0, 30)
-    AND EXTRACT(MINUTE FROM "closeTime") IN (0, 30)
-  );
-ALTER TABLE "PricingRule" ADD CONSTRAINT "UQ_PricingRule_Milestone"
-  UNIQUE ("courtId", "dayOfWeek", "startTime");
-ALTER TABLE "PricingRule" ADD CONSTRAINT "FK_PricingRule_Schedule"
-  FOREIGN KEY ("courtId", "dayOfWeek")
-  REFERENCES "CourtSchedule" ("courtId", "dayOfWeek") ON DELETE RESTRICT;
-ALTER TABLE "PricingRule" ADD CONSTRAINT "CK_PricingRule_Value"
-  CHECK ("dayOfWeek" BETWEEN 1 AND 7 AND "pricePerHour" > 0
-         AND EXTRACT(SECOND FROM "startTime") = 0);
+ALTER TABLE "PricingRules" ADD CONSTRAINT "UQ_PricingRule_Milestone"
+  UNIQUE ("CourtId", "DayOfWeek", "StartTime");
 ```
 
-- Không dùng exclusion constraint trên khoảng giờ của `CourtSchedule` vì mỗi ngày chỉ có một lịch; `tsrange` cũng không nhận hai giá trị `time`.
-- Cuối giao dịch, kiểm tra: mỗi sân đủ 7 lịch; mỗi bảng giá không rỗng; mốc đầu bằng giờ mở; mọi mốc thuộc `[openTime, closeTime)`. UNIQUE chỉ bảo đảm tối đa một lịch cho mỗi ngày.
+- `CourtSchedule` giữ exclusion constraint trên `(courtId, dayOfWeek, [openTime, closeTime))`. Vì vậy schema **cho phép nhiều khung giờ rời nhau trong cùng một ngày** của một sân, nhưng cấm chồng lấn. `tsrange` dựng từ mốc `DATE '2000-01-01' + time` để so sánh giờ trong ngày; `btree_gist` bắt buộc cho toán tử `=` trên `CourtId`/`DayOfWeek`.
+- UNIQUE `(courtId, dayOfWeek, openTime)` chỉ chống trùng khung giờ bắt đầu, không thay exclusion constraint.
+- `PricingRule` **không** có FK ghép tới `CourtSchedule` và không có exclusion constraint sau migration `20261008150143_DropPricingRuleEndTime`. Ràng buộc "mốc giá nằm trong giờ mở và phủ kín giờ mở" do tầng ứng dụng kiểm tra dưới khóa dòng sân/lịch (xem mục 7).
+- Cuối giao dịch, kiểm tra: mỗi sân đủ khung giờ cho 7 ngày (không nhất thiết đúng 7 dòng); mỗi bảng giá không rỗng; mốc đầu bằng giờ mở; mọi mốc thuộc `[openTime, closeTime)`. Dữ liệu đích (một khung giờ cho mỗi ngày) là quy ước nghiệp vụ, không phải ràng buộc cơ sở dữ liệu hiện hành.
+- CHUẨN HÓA tên sân về chữ thường và trim khi so sánh là việc của tầng ứng dụng; chỉ mục `IX_BadmintonCourts_Name` hiện là UNIQUE trên giá trị thô. Nếu cần chống trùng không phân biệt hoa/thường ở cơ sở dữ liệu, thay bằng chỉ mục biểu thức `lower(btrim("Name"))` trong một migration riêng.
+- CHECK giờ mở/đóng (phút 00/30, giây 0, `openTime < closeTime`) và CHECK `dayOfWeek BETWEEN 1 AND 7`, `pricePerHour > 0` hiện được kiểm tra ở DTO/validator; chưa có CHECK tương ứng trong migration.
 
 | Enum | Giá trị |
 | --- | --- |
@@ -273,8 +315,8 @@ Trạng thái thanh toán lấy từ hóa đơn hợp lệ, không lưu trên `B
 | bookingId | uuid | FK → `Booking` |
 | oldStatus | Enum[BookingStatus], NULL | `NULL` duy nhất ở sự kiện tạo đơn |
 | newStatus | Enum[BookingStatus] | |
-| actorType | Enum[ActorType] | `SYSTEM`, `EMPLOYEE`, `CUSTOMER` |
-| employeeId | uuid, NULL | FK → `Employee`; có khi `actorType = EMPLOYEE` |
+| actorType | Enum[ActorType] | `SYSTEM`, `EMPLOYEE`, `CUSTOMER`; lưu chuỗi tối đa 20 ký tự |
+| changedByEmployee | uuid, NULL | FK → `Employee`; có khi `actorType = EMPLOYEE` |
 | customerId | uuid, NULL | FK → `Customer`; có khi `actorType = CUSTOMER` |
 | changedAt | DateTime UTC | Thời điểm thực ghi nhận |
 | reason | string | Lý do chuyển trạng thái; chốt giờ kết thúc ghi lý do tự động rõ ràng |
@@ -288,33 +330,26 @@ Trạng thái thanh toán lấy từ hóa đơn hợp lệ, không lưu trên `B
 ```sql
 -- Cần btree_gist để GiST hỗ trợ toán tử = trên courtId và date.
 CREATE EXTENSION IF NOT EXISTS btree_gist;
-CREATE UNIQUE INDEX "UX_Booking_Code" ON "Booking" ("bookingCode");
-ALTER TABLE "Booking" ADD CONSTRAINT "CK_Booking_Time"
-  CHECK (
-    "startTime" < "endTime" AND "endTime" - "startTime" >= INTERVAL '30 minutes'
-    AND EXTRACT(SECOND FROM "startTime") = 0
-    AND EXTRACT(SECOND FROM "endTime") = 0
-    AND EXTRACT(MINUTE FROM "startTime") IN (0, 30)
-    AND EXTRACT(MINUTE FROM "endTime") IN (0, 30)
-    AND "totalCost" > 0
-  );
-ALTER TABLE "Booking" ADD CONSTRAINT "CK_Booking_Code"
-  CHECK ("bookingCode" ~ '^DS-[A-Za-z0-9]{5,}$');
-ALTER TABLE "Booking" ADD CONSTRAINT "EX_Booking_NoOverlap"
+CREATE UNIQUE INDEX "IX_Bookings_BookingCode" ON "Bookings" ("BookingCode");
+ALTER TABLE "Bookings" ADD CONSTRAINT "ex_bookings_no_overlap"
   EXCLUDE USING gist (
-    "courtId" WITH =,
-    "date" WITH =,
-    (tsrange("date" + "startTime", "date" + "endTime", '[)')) WITH &&
-  ) WHERE ("status" <> 'Cancelled');
-CREATE UNIQUE INDEX "UX_BookingHistory_Creation"
-  ON "BookingStatusHistory" ("bookingId") WHERE "oldStatus" IS NULL;
-ALTER TABLE "BookingStatusHistory" ADD CONSTRAINT "CK_BookingHistory_Actor"
+    "CourtId" WITH =,
+    "Date" WITH =,
+    (tsrange("Date" + "StartTime", "Date" + "EndTime")) WITH &&
+  ) WHERE ("Status" <> 'Cancelled');
+CREATE UNIQUE INDEX "IX_BookingStatusHistories_BookingId"
+  ON "BookingStatusHistories" ("BookingId") WHERE "OldStatus" IS NULL;
+ALTER TABLE "BookingStatusHistories" ADD CONSTRAINT "ck_booking_status_history_actor"
   CHECK (
-    ("actorType" = 'System' AND "employeeId" IS NULL AND "customerId" IS NULL)
-    OR ("actorType" = 'Employee' AND "employeeId" IS NOT NULL AND "customerId" IS NULL)
-    OR ("actorType" = 'Customer' AND "employeeId" IS NULL AND "customerId" IS NOT NULL)
+    ("ActorType" = 'System' AND "ChangedByEmployee" IS NULL AND "CustomerId" IS NULL)
+    OR ("ActorType" = 'Employee' AND "ChangedByEmployee" IS NOT NULL AND "CustomerId" IS NULL)
+    OR ("ActorType" = 'Customer' AND "ChangedByEmployee" IS NULL AND "CustomerId" IS NOT NULL)
   );
 ```
+
+Chỉ mục phục vụ truy vấn hiện có: `(Status, CreatedAt, BookingId)`, `(Date, CourtId, StartTime, BookingId)`, `(CustomerId, Date, StartTime, CreatedAt, BookingId)`, và `BookingStatusHistories (BookingId, ChangedAt, Id)`.
+
+CHECK khoảng thời gian (`StartTime < EndTime`, tối thiểu 30 phút, phút 00/30, giây 0), định dạng `BookingCode` và `TotalCost > 0` chưa có trong migration; tầng ứng dụng kiểm tra bằng validator. `tsrange` mặc định là `[)`, đúng ngữ nghĩa nửa mở của lượt đặt.
 
 Mốc tương lai, giờ kết thúc đã qua, giờ mở cửa, chuyển trạng thái hợp lệ và quyền tác nhân được kiểm tra dưới khóa giao dịch bằng đồng hồ máy chủ; không đưa `now()` vào CHECK vì quy tắc đổi theo thời gian. Exclusion constraint là lớp chống trùng cuối cùng, không thay việc kiểm tra khả dụng hay quyền.
 
@@ -426,15 +461,16 @@ Nguồn: BR-14, BR-15, UC-40, NFR-05.
 | action | string | Loại thao tác: tạo, sửa, xóa mềm, khóa, mở khóa, quyền, thu, hoàn, chốt… |
 | entityName | string | Đối tượng |
 | entityId | string | Mã đối tượng; hỗ trợ UUID, int, khóa ghép |
-| oldValue | JsonB, NULL | Giá trị trước, đã loại bí mật |
-| newValue | JsonB, NULL | Giá trị sau, đã loại bí mật |
+| oldValue | JsonB, NULL | Giá trị trước, đã loại bí mật; cột `jsonb`, entity giữ `string` |
+| newValue | JsonB, NULL | Giá trị sau, đã loại bí mật; cột `jsonb`, entity giữ `string` |
 | createdAt | DateTime UTC | |
 
 - CHECK tác nhân giống `BookingStatusHistory`. `oldValue`/`newValue`/lỗi không chứa mật khẩu, mã xác minh, mã phiên hay giá trị băm của chúng; với `UserAccount` và `VerificationCode` chỉ lấy các trường được phép. Thuộc tính `passwordHash` không được ghi vào Audit.
 - Hệ thống tự tạo Audit trong giao dịch nghiệp vụ. `actorType/employeeId/customerId` ghi người thực hiện nghiệp vụ; việc hệ thống ghi log không đổi tác nhân thành `SYSTEM`.
 - Không có trường lý do và không có API tạo hoặc sửa Audit trực tiếp. Bản ghi bất biến với mọi người dùng, kể cả nhân viên và QTV.
 - Audit bao phủ sân, lịch, giá, hồ sơ khách, hồ sơ và tài khoản nội bộ, đặt sân, hóa đơn và mọi thao tác nêu ở BR-14. Không audit chính bảng Audit. Dùng quyền cơ sở dữ liệu hoặc trigger để chặn UPDATE/DELETE trên `Audit` và `BookingStatusHistory` bởi tài khoản ứng dụng.
-- Chỉ mục: `(createdAt, id)`, `(actorType, createdAt)`, `(employeeId, createdAt)`, `(customerId, createdAt)`, `(entityName, entityId)`, `(action, createdAt)`.
+- `AuditInterceptor` sinh bản ghi ở sự kiện `SavedChanges`/`SavedChangesAsync`: khóa của bản ghi `Added` chỉ có sau khi ghi, nên nhật ký được thêm và lưu ở lượt `SaveChanges` kế tiếp trong cùng `DbContext`. Khi `IsSystemSave = true` (job chốt BR-17), tác nhân ghi thành `SYSTEM` bất kể người dùng hiện tại.
+- Chỉ mục hiện có: `(EntityName, EntityId)`, `(CreatedAt)`, `(EmployeeId)`, `(CustomerId)`. Chỉ mục theo `actorType`/`action` là nhu cầu báo cáo, chưa được tạo.
 
 ### 6.2 IdempotencyRequest — kết quả chống gửi lặp
 
@@ -471,8 +507,8 @@ Nguồn: BR-28, UC-07–UC-10, UC-15, UC-16, UC-18, UC-19, UC-41, NFR-08.
 | recipientEmail | string | Snapshot email nhận tại sự kiện |
 | bookingId | uuid | FK → `Booking` |
 | eventType | string | Tạo đơn, đổi lịch, đổi trạng thái… |
-| payload | JsonB | Nội dung sự kiện để gửi, không chứa bí mật |
-| status | string | Trạng thái kỹ thuật: `PENDING`, `PROCESSING`, `SENT`, `FAILED` |
+| payload | JsonB | Nội dung sự kiện để gửi, không chứa bí mật; cột `jsonb`, entity giữ `string` |
+| status | string | Trạng thái kỹ thuật: `PENDING`, `SENDING`, `SENT`, `FAILED` |
 | attemptCount | int | Số lần thử gửi, >= 0 |
 | lastError | string, NULL | Lỗi đã loại bí mật |
 | nextAttemptAt | DateTime UTC, NULL | Lịch thử lại |
@@ -481,7 +517,8 @@ Nguồn: BR-28, UC-07–UC-10, UC-15, UC-16, UC-18, UC-19, UC-41, NFR-08.
 | createdAt | DateTime UTC | |
 
 - Notification được lưu cùng giao dịch tạo/đổi đơn; chỉ gửi email sau commit. UNIQUE `eventKey` chống tạo lại thông báo cùng sự kiện; retry chỉ gửi lại thông báo, không tạo lại `Booking`/`Invoice`.
-- Worker nhận việc nguyên tử và khôi phục `PROCESSING` quá hạn; lỗi email giữ nguyên kết quả nghiệp vụ đã lưu.
+- `BookingNotificationWorker` chạy chu kỳ 15 giây, mỗi chu kỳ nhận tối đa 20 thông báo, và nhận việc bằng `FOR UPDATE SKIP LOCKED` trên các dòng `PENDING`/`SENDING` đã tới `nextAttemptAt` và không bị giữ (`LockedUntil`). Khi nhận, worker đặt `Status = 'SENDING'`, `LockedUntil = now + 2 phút`, tăng `AttemptCount`. Lỗi email giữ nguyên kết quả nghiệp vụ đã lưu; thông báo đang `SENDING` mà `LockedUntil` đã qua sẽ được nhận lại (chạy bù).
+- Chỉ mục hiện có: UNIQUE `EventKey`. Chỉ mục theo `(status, nextAttemptAt, notificationId)` là yêu cầu khi hàng đợi lớn.
 - Email có thể bị gửi lặp nếu nhà cung cấp đã nhận nhưng worker mất kết quả. Dùng khóa sự kiện chống lặp phía nhà cung cấp khi có hỗ trợ; không giả định UNIQUE trong cơ sở dữ liệu bảo đảm email chỉ gửi đúng một lần.
 - Mã xác minh không đưa vào bảng này; việc gửi mã theo mục 2.1. Trợ lý AI chỉ đọc dữ liệu công khai, không tạo thông báo, đơn, hóa đơn hay đọc hồ sơ khách; SRS không yêu cầu lưu hội thoại AI nên không có bảng hội thoại.
 
@@ -586,3 +623,4 @@ Chỉ mục không đổi chức năng hay ràng buộc nghiệp vụ. Danh sác
 | 1.8 · 28/10/2026 | Đồng bộ SRS 1.8: `PaidAmount` và backfill đã duyệt; `REFUNDED`; người lập `NULL`; hóa đơn tiền nhiệm; `ExpectedState`; thời điểm UTC nghiêm ngặt; chốt giờ kết thúc, lịch :01/:31. |
 | 2.0 · 28/10/2026 | Viết lại, không đổi thiết kế: bỏ các đoạn nhắc lại quy tắc nghiệp vụ (chỉ dẫn chiếu BR trong SRS); gom chi tiết thiết kế từ SRS về đây; rút gọn mục 7; cập nhật mã UC/NFR theo Use Case 2.0 và SRS 2.0. |
 | 2.1 · 30/10/2026 | Thêm `PENDING_ACTIVATION`, `SET_PASSWORD`; liên kết thiết lập mật khẩu 24 giờ; `passwordHash` không vào Audit. Không đổi cấu trúc bảng/cột. |
+| 2.2 · 31/10/2026 | Đối chiếu schema thực tế: thêm mục 1.1 tên bảng vật lý, 1.2 đối tượng `[NoAudit]`, 1.3 danh sách migration; `Employee.Email` cho phép `NULL`; `CourtSchedule` dùng UNIQUE `(CourtId, DayOfWeek, OpenTime)` + `ex_court_schedules_no_overlap`; `PricingRule` không có `EndTime`/FK ghép/exclusion; `Audit` chỉ mục thực tế; `Notification.Status` là `SENDING`; ghi rõ các CHECK còn ở tầng ứng dụng. |
