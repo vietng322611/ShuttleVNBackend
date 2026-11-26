@@ -6,6 +6,7 @@ so the same script works on the operator machine and on the CI runner that
 never sees the state file.
 """
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -34,12 +35,19 @@ except (subprocess.CalledProcessError, FileNotFoundError, KeyError, TypeError) a
 if not public_ip or not private_ip or not public_private_ip:
     sys.exit("EC2 chưa có đủ IP trong Terraform state.")
 
+# The private host is the CI runner, so converge runs from inside the VPC. An
+# SSH attempt from there to the public EIP leaves through the NAT gateway and
+# never comes back, so reach the same host by its private address instead.
+# The operator machine is outside the VPC and still needs the public address.
+public_host = public_private_ip if os.environ.get("ANSIBLE_INSIDE_VPC") == "1" else public_ip
+
 print(json.dumps({
     "public": {"hosts": ["public_ec2"]},
     "private": {"hosts": ["private_ec2"]},
     "_meta": {
         "hostvars": {
-            "public_ec2": {"ansible_host": public_ip, "private_ip": public_private_ip},
+            "public_ec2": {"ansible_host": public_host, "public_ip": public_ip,
+                           "private_ip": public_private_ip},
             "private_ec2": {"ansible_host": private_ip, "private_ip": private_ip},
         }
     },

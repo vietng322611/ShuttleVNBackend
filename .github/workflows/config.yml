@@ -96,6 +96,10 @@ jobs:
       # instead of turning verification off.
       # -raw only works for primitive outputs, and `servers` is an object, so
       # read the JSON form instead of annotating it as a string.
+      # This job runs on the private host, i.e. inside the VPC. Reaching the
+      # public host through its EIP would leave via the NAT gateway and never
+      # return, so key the private addresses and tell the inventory to do the
+      # same.
       - name: Trust the hosts
         run: |
           set -euo pipefail
@@ -105,12 +109,17 @@ jobs:
           mapfile -t HOSTS < <(python3 -c '
           import json
           s = json.load(open("/tmp/servers.json"))
-          print(s["public"]["public_ip"])
           print(s["public"]["private_ip"])
           print(s["private"]["private_ip"])
           ')
-          ssh-keyscan -T 10 -H "${HOSTS[@]}" >> ~/.ssh/known_hosts
+          for host in "${HOSTS[@]}"; do
+            for _ in $(seq 1 20); do
+              ssh-keyscan -T 5 -H "$host" >> ~/.ssh/known_hosts 2>/dev/null && break
+              sleep 5
+            done
+          done
           sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
+          grep -c . ~/.ssh/known_hosts
 
       - name: Syntax check
         working-directory: ${{ env.ANSIBLE_ROOT }}
@@ -123,6 +132,9 @@ jobs:
         env:
           LIMIT: ${{ inputs.limit }}
           CHECK: ${{ inputs.check }}
+          # The job runs on the private host, so the inventory must address the
+          # public host by its private IP.
+          ANSIBLE_INSIDE_VPC: '1'
         run: |
           set -euo pipefail
           args=()
