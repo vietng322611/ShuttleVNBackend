@@ -113,7 +113,9 @@ jobs:
           test "$token" != "null"
 
           script=$(cat <<EOF
-          set -euo pipefail
+          # AWS-RunShellScript executes this with /bin/sh, so bash-only options
+          # such as pipefail are unavailable here.
+          set -eu
           units=\$(systemctl list-units --all --quiet --type=service 2>/dev/null || true)
           case "\$units" in
             *actions.runner.*) echo "runner already installed"; exit 0 ;;
