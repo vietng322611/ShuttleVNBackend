@@ -35,20 +35,28 @@ except (subprocess.CalledProcessError, FileNotFoundError, KeyError, TypeError) a
 if not public_ip or not private_ip or not public_private_ip:
     sys.exit("EC2 chưa có đủ IP trong Terraform state.")
 
-# The private host is the CI runner, so converge runs from inside the VPC. An
-# SSH attempt from there to the public EIP leaves through the NAT gateway and
-# never comes back, so reach the same host by its private address instead.
-# The operator machine is outside the VPC and still needs the public address.
-public_host = public_private_ip if os.environ.get("ANSIBLE_INSIDE_VPC") == "1" else public_ip
+# The private host is the CI runner, so converge runs from inside the VPC:
+#  - the private host is the machine the play is running on, so connect
+#    locally instead of SSHing to an address the private SG does not admit;
+#  - the public host must be reached by private address, because its EIP
+#    would send the packet out through the NAT gateway and back.
+# The operator machine is outside the VPC and still needs the public address
+# plus the ProxyJump from group_vars/private.yml.
+inside_vpc = os.environ.get("ANSIBLE_INSIDE_VPC") == "1"
+
+public_hostvars = {
+    "ansible_host": public_private_ip if inside_vpc else public_ip,
+    "public_ip": public_ip,
+    "private_ip": public_private_ip,
+}
+private_hostvars = {"ansible_host": private_ip, "private_ip": private_ip}
+
+if inside_vpc:
+    public_hostvars["ansible_ssh_common_args"] = ""
+    private_hostvars["ansible_connection"] = "local"
 
 print(json.dumps({
     "public": {"hosts": ["public_ec2"]},
     "private": {"hosts": ["private_ec2"]},
-    "_meta": {
-        "hostvars": {
-            "public_ec2": {"ansible_host": public_host, "public_ip": public_ip,
-                           "private_ip": public_private_ip},
-            "private_ec2": {"ansible_host": private_ip, "private_ip": private_ip},
-        }
-    },
+    "_meta": {"hostvars": {"public_ec2": public_hostvars, "private_ec2": private_hostvars}},
 }))
