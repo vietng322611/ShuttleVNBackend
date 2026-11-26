@@ -36,6 +36,8 @@ public static class AssistantServiceRegistration
 
         services.AddHttpClient<IChatCompletionClient, OpenAiCompatibleChatClient>();
         services.AddScoped<AssistantChatService>();
+        services.AddScoped<IAssistantTool, AnswerFaqTool>();
+        services.AddScoped<IAssistantTool, DeclineOutOfScopeTool>();
         services.AddScoped<IAssistantTool, ListCourtsTool>();
         services.AddScoped<IAssistantTool, CourtAvailabilityTool>();
 

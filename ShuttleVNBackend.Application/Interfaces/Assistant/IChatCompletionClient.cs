@@ -12,7 +12,8 @@ public sealed record ChatCompletionMessage(
 
 public sealed record ChatCompletionRequest(
     IReadOnlyList<ChatCompletionMessage> Messages,
-    IReadOnlyList<ChatToolSpec> Tools);
+    IReadOnlyList<ChatToolSpec> Tools,
+    string ToolChoice = "auto");
 
 public abstract record ChatStreamEvent
 {

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using ShuttleVNBackend.Application.Common;
+using ShuttleVNBackend.Application.DTOs.Courts;
 using ShuttleVNBackend.Application.Interfaces.Assistant;
 using ShuttleVNBackend.Application.UseCases.Courts.Services;
 
@@ -60,6 +61,7 @@ public sealed class CourtAvailabilityTool(
         }
 
         var grid = await courtService.GetCourtGridAsync(date, ct);
+        var now = VietnamTime.NowLocal(clock);
 
         var payload = new CourtAvailabilityToolResult(
             grid.Date,
@@ -68,12 +70,29 @@ public sealed class CourtAvailabilityTool(
                     court.Court.CourtId,
                     court.Court.Name,
                     court.Slots
+                        .Where(slot => IsBookable(slot, date, now))
                         .Select(slot => new AssistantSlotDto(
                             slot.StartTime, slot.EndTime, slot.DisplayStatus, slot.PricePerHour))
                         .ToList()))
                 .ToList());
 
         return new ToolOutcome(false, payload);
+    }
+
+    /// <summary>
+    /// Free slots the customer can still book. Booked and closed slots only inflate the
+    /// payload, and a slot that already ended is noise for the model.
+    /// </summary>
+    private static bool IsBookable(CourtSlotDto slot, DateOnly date, DateTime now)
+    {
+        if (slot.DisplayStatus != "AVAILABLE")
+        {
+            return false;
+        }
+
+        return date > DateOnly.FromDateTime(now)
+               || TimeOnly.ParseExact(slot.EndTime, "HH:mm", CultureInfo.InvariantCulture)
+                   > TimeOnly.FromDateTime(now);
     }
 
     private static ToolOutcome Error(string message)

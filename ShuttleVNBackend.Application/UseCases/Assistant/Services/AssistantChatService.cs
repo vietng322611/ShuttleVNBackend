@@ -7,6 +7,7 @@ using ShuttleVNBackend.Application.Common;
 using ShuttleVNBackend.Application.DTOs.Assistant;
 using ShuttleVNBackend.Application.Exceptions;
 using ShuttleVNBackend.Application.Interfaces.Assistant;
+using ShuttleVNBackend.Application.UseCases.Assistant.Tools;
 
 namespace ShuttleVNBackend.Application.UseCases.Assistant.Services;
 
@@ -19,6 +20,11 @@ public sealed class AssistantChatService(
     private static readonly JsonSerializerOptions PayloadJson = JsonSerializerOptions.Web;
     private static readonly string[] VietnameseDayNames =
         ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+    // MaxMessages caps what a caller may send; this caps what is forwarded to the model.
+    // ponytail: fixed window; make it configurable when the assistant grows a persona.
+    private const int ConversationWindow = 6;
+
     private readonly Dictionary<string, IAssistantTool> _tools = tools.ToDictionary(t => t.Name);
     private readonly AssistantOptions _settings = options.Value;
 
@@ -51,14 +57,18 @@ public sealed class AssistantChatService(
             .ToList();
 
         string reply = AssistantReplyValidator.FallbackReply;
+        var allowedNumbers = AssistantReplyValidator.CollectEvidence(request.Messages[^1].Content);
+        var lookupHappened = false;
 
         for (var round = 0; round <= _settings.MaxToolRounds; round++)
         {
             var canCallTools = round < _settings.MaxToolRounds;
 
+            // Round 0 forces a tool call so the model cannot answer from memory.
             var completionRequest = new ChatCompletionRequest(
                 messages,
-                canCallTools ? toolSpecs : []);
+                canCallTools ? toolSpecs : [],
+                round == 0 ? "required" : "auto");
 
             var accumulatedText = new StringBuilder();
             List<ChatToolCall>? toolCalls = null;
@@ -69,7 +79,6 @@ public sealed class AssistantChatService(
                 {
                     case ChatStreamEvent.TextDelta delta when !string.IsNullOrEmpty(delta.Text):
                         accumulatedText.Append(delta.Text);
-                        yield return new AssistantStreamEvent.TextDelta(delta.Text);
                         break;
                     case ChatStreamEvent.ToolCallsReady calls:
                         toolCalls = calls.Calls.ToList();
@@ -79,35 +88,77 @@ public sealed class AssistantChatService(
 
             if (toolCalls is { Count: > 0 })
             {
-                // Truncate before building the assistant message: every tool_call must have
-                // a matching tool message or providers reject the next round.
+                // Every tool_call needs a matching tool message or providers reject the round.
                 var calls = toolCalls.Take(_settings.MaxToolCallsPerRound).ToList();
 
-                var assistantMessage = new ChatCompletionMessage(
+                messages.Add(new ChatCompletionMessage(
                     "assistant",
                     accumulatedText.Length == 0 ? null : accumulatedText.ToString(),
-                    calls);
-                messages.Add(assistantMessage);
+                    calls));
 
                 foreach (var call in calls)
                 {
+                    if (_tools.TryGetValue(call.Name, out var tool)
+                        && tool is IAssistantReplyTool replyTool)
+                    {
+                        // Server writes the sentence; the model only picks the branch.
+                        reply = replyTool.BuildReply(ParseArguments(call.Arguments));
+                        yield return new AssistantStreamEvent.TextDelta(reply);
+                        yield return new AssistantStreamEvent.Done(reply);
+                        yield break;
+                    }
+
                     yield return new AssistantStreamEvent.ToolStarted(call.Name);
 
                     var result = await ExecuteToolAsync(call, ct);
+                    allowedNumbers.UnionWith(AssistantReplyValidator.CollectEvidence(result));
+                    lookupHappened = true;
                     messages.Add(new ChatCompletionMessage("tool", result, ToolCallId: call.Id));
                 }
 
                 continue;
             }
 
-            reply = AssistantReplyValidator.Sanitize(
-                accumulatedText.ToString(),
-                _settings.MaxReplyChars);
+            // Free text needs a real lookup and no number the server never supplied.
+            var candidate = accumulatedText.ToString();
+            reply = lookupHappened
+                && !AssistantReplyValidator.HasUnsupportedNumbers(candidate, allowedNumbers)
+                    ? AssistantReplyValidator.Sanitize(candidate, _settings.MaxReplyChars)
+                    : AssistantReplyValidator.FallbackReply;
 
             break;
         }
 
+        // Validate before emitting so the client never renders text that is retracted later.
+        // ponytail: no token-by-token typing; stream per sentence when the UI needs it.
+        yield return new AssistantStreamEvent.TextDelta(reply);
         yield return new AssistantStreamEvent.Done(reply);
+    }
+
+    /// <summary>
+    /// Malformed arguments become an empty object so decision tools fail closed.
+    /// </summary>
+    private static JsonElement ParseArguments(string? arguments)
+    {
+        if (string.IsNullOrWhiteSpace(arguments))
+        {
+            return EmptyArguments();
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(arguments);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return EmptyArguments();
+        }
+    }
+
+    private static JsonElement EmptyArguments()
+    {
+        return JsonSerializer.Deserialize<JsonElement>("{}");
     }
 
     private async Task<string> ExecuteToolAsync(ChatToolCall call, CancellationToken ct)
@@ -203,8 +254,9 @@ public sealed class AssistantChatService(
             new("system", $"{AssistantPrompt.System}\n\n{BuildCurrentTimeNote()}")
         };
 
-        messages.AddRange(request.Messages.Select(m =>
-            new ChatCompletionMessage(m.Role.Trim().ToLowerInvariant(), m.Content.Trim())));
+        messages.AddRange(request.Messages
+            .TakeLast(ConversationWindow)
+            .Select(m => new ChatCompletionMessage(m.Role.Trim().ToLowerInvariant(), m.Content.Trim())));
 
         return messages;
     }
