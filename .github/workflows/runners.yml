@@ -116,14 +116,14 @@ jobs:
           # AWS-RunShellScript executes this with /bin/sh, so bash-only options
           # such as pipefail are unavailable here.
           set -eu
+          # hashicorp/setup-terraform shells out to unzip, which the minimal
+          # Ubuntu AMI does not ship. Install it before the short-circuit so
+          # an already-registered host still gets repaired.
+          command -v unzip >/dev/null || { apt-get update -qq && apt-get install -y -qq unzip; }
           units=\$(systemctl list-units --all --quiet --type=service 2>/dev/null || true)
           case "\$units" in
             *actions.runner.*) echo "runner already installed"; exit 0 ;;
           esac
-          # hashicorp/setup-terraform shells out to unzip, which the minimal
-          # Amazon Linux/Ubuntu AMI does not ship. Install it on the runner
-          # host so the converge job can start.
-          command -v unzip >/dev/null || { apt-get update -qq && apt-get install -y -qq unzip; }
           id -u ghrunner >/dev/null 2>&1 || useradd -m -s /bin/bash ghrunner
           getent group docker >/dev/null || groupadd docker
           usermod -aG docker ghrunner
