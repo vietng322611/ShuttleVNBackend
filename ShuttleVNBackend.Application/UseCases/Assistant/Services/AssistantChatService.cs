@@ -21,6 +21,10 @@ public sealed class AssistantChatService(
     private static readonly string[] VietnameseDayNames =
         ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
 
+    // MaxMessages caps what a caller may send; this caps what is forwarded to the model.
+    // ponytail: fixed window; make it configurable when the assistant grows a persona.
+    private const int ConversationWindow = 6;
+
     private readonly Dictionary<string, IAssistantTool> _tools = tools.ToDictionary(t => t.Name);
     private readonly AssistantOptions _settings = options.Value;
 
@@ -250,8 +254,9 @@ public sealed class AssistantChatService(
             new("system", $"{AssistantPrompt.System}\n\n{BuildCurrentTimeNote()}")
         };
 
-        messages.AddRange(request.Messages.Select(m =>
-            new ChatCompletionMessage(m.Role.Trim().ToLowerInvariant(), m.Content.Trim())));
+        messages.AddRange(request.Messages
+            .TakeLast(ConversationWindow)
+            .Select(m => new ChatCompletionMessage(m.Role.Trim().ToLowerInvariant(), m.Content.Trim())));
 
         return messages;
     }
