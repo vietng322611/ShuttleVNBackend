@@ -67,7 +67,9 @@ jobs:
         run: |
           python3 -m venv ~/.ansible-venv
           ~/.ansible-venv/bin/pip install --quiet --upgrade pip
-          ~/.ansible-venv/bin/pip install --quiet ansible-core community.docker
+          ~/.ansible-venv/bin/pip install --quiet ansible-core
+          # community.docker is an Ansible collection, not a pip package.
+          ~/.ansible-venv/bin/ansible-galaxy collection install --quiet community.docker
           ~/.ansible-venv/bin/ansible --version | head -1
 
       - name: Materialise operator files
