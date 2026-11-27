@@ -1,6 +1,6 @@
-using ShuttleVNBackend.Core.Entities.Bookings.Enums;
-using ShuttleVNBackend.Core.Entities.Bookings;
 using ShuttleVNBackend.Application.UseCases.Bookings.Services;
+using ShuttleVNBackend.Core.Entities.Bookings;
+using ShuttleVNBackend.Core.Entities.Bookings.Enums;
 
 namespace ShuttleVNBackend.Application.DTOs.Bookings;
 
@@ -61,15 +61,18 @@ public sealed record BookingPriceSegmentDto(
     decimal PricePerHour
 )
 {
-    public BookingPriceSegment ToEntity(Guid bookingId) => new()
+    public BookingPriceSegment ToEntity(Guid bookingId)
     {
-        BookingId = bookingId,
-        SegmentNo = SegmentNo,
-        PriceStartTime = PriceStartTime,
-        SegmentStartTime = SegmentStartTime,
-        SegmentEndTime = SegmentEndTime,
-        PricePerHour = PricePerHour
-    };
+        return new BookingPriceSegment
+        {
+            BookingId = bookingId,
+            SegmentNo = SegmentNo,
+            PriceStartTime = PriceStartTime,
+            SegmentStartTime = SegmentStartTime,
+            SegmentEndTime = SegmentEndTime,
+            PricePerHour = PricePerHour
+        };
+    }
 
     public static BookingPriceSegmentDto FromEntity(BookingPriceSegment segment)
     {

@@ -6,15 +6,14 @@ namespace ShuttleVNBackend.Application.UseCases.Authentication.Helpers;
 
 public static class PasswordSetupRules
 {
-    public static readonly TimeSpan TokenLifetime = TimeSpan.FromHours(24);
-    public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
-    public static readonly TimeSpan ResendWindow = TimeSpan.FromHours(1);
-
     public const int ResendMaxPerWindow = 5;
     public const int TokenByteLength = 32;
     public const int TokenMaxLength = 128;
     public const int PasswordMinLength = 8;
     public const int PasswordMaxLength = 128;
+    public static readonly TimeSpan TokenLifetime = TimeSpan.FromHours(24);
+    public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
+    public static readonly TimeSpan ResendWindow = TimeSpan.FromHours(1);
 
     public static string GenerateToken()
     {
@@ -28,4 +27,3 @@ public static class PasswordSetupRules
                && address.Address == email;
     }
 }
-

@@ -7,26 +7,26 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" />
-        <ProjectReference Include="..\ShuttleVNBackend.Application\ShuttleVNBackend.Application.csproj" />
-        <ProjectReference Include="..\ShuttleVNBackend.Core\ShuttleVNBackend.Core.csproj" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+        <ProjectReference Include="..\ShuttleVNBackend.Application\ShuttleVNBackend.Application.csproj"/>
+        <ProjectReference Include="..\ShuttleVNBackend.Core\ShuttleVNBackend.Core.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="EFCore.ComplexIndexes.PostgreSQL" Version="5.0.3" />
-        <PackageReference Include="MailKit" Version="4.18.2" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
+        <PackageReference Include="EFCore.ComplexIndexes.PostgreSQL" Version="5.0.3"/>
+        <PackageReference Include="MailKit" Version="4.18.2"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.2" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3"/>
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.5.2"/>
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Email\Rendering\Templates\*.html" />
+        <EmbeddedResource Include="Email\Rendering\Templates\*.html"/>
     </ItemGroup>
 
 </Project>

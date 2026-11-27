@@ -77,7 +77,8 @@ public class PricingRuleService(
         if (ordered[0].StartTime != schedule.OpenTime)
             errors["PricingRules"] = [$"The first pricing rule must start at {schedule.OpenTime}."];
         else if (ordered.Any(r => r.StartTime < schedule.OpenTime || r.StartTime >= schedule.CloseTime))
-            errors["PricingRules"] = [$"Pricing rule start times must be within {schedule.OpenTime}-{schedule.CloseTime}."];
+            errors["PricingRules"] =
+                [$"Pricing rule start times must be within {schedule.OpenTime}-{schedule.CloseTime}."];
         else if (ordered.Select(r => r.StartTime).Distinct().Count() != ordered.Count)
             errors["PricingRules"] = ["Pricing rule start times must be unique."];
         if (ordered.Any(r => r.PricePerHour <= 0))

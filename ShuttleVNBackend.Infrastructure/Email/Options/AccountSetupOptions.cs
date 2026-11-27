@@ -7,4 +7,3 @@ public sealed class AccountSetupOptions
     public string FrontendBaseUrl { get; set; } = string.Empty;
     public string SetPasswordPath { get; set; } = "/set-password";
 }
-

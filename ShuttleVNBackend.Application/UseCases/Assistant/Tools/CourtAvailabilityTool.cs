@@ -47,18 +47,14 @@ public sealed class CourtAvailabilityTool(
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
                 out var date))
-        {
             return Error("`date` là bắt buộc và phải có định dạng YYYY-MM-DD.");
-        }
 
         var today = VietnamTime.TodayLocal(clock);
         var horizon = today.AddDays(options.Value.AvailabilityHorizonDays);
 
         if (date < today || date > horizon)
-        {
             return Error(
                 $"`date` phải nằm trong khoảng {today:yyyy-MM-dd} đến {horizon:yyyy-MM-dd}.");
-        }
 
         var grid = await courtService.GetCourtGridAsync(date, ct);
         var now = VietnamTime.NowLocal(clock);
@@ -80,19 +76,16 @@ public sealed class CourtAvailabilityTool(
     }
 
     /// <summary>
-    /// Free slots the customer can still book. Booked and closed slots only inflate the
-    /// payload, and a slot that already ended is noise for the model.
+    ///     Free slots the customer can still book. Booked and closed slots only inflate the
+    ///     payload, and a slot that already ended is noise for the model.
     /// </summary>
     private static bool IsBookable(CourtSlotDto slot, DateOnly date, DateTime now)
     {
-        if (slot.DisplayStatus != "AVAILABLE")
-        {
-            return false;
-        }
+        if (slot.DisplayStatus != "AVAILABLE") return false;
 
         return date > DateOnly.FromDateTime(now)
                || TimeOnly.ParseExact(slot.EndTime, "HH:mm", CultureInfo.InvariantCulture)
-                   > TimeOnly.FromDateTime(now);
+               > TimeOnly.FromDateTime(now);
     }
 
     private static ToolOutcome Error(string message)

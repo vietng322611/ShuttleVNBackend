@@ -8,10 +8,14 @@ namespace ShuttleVNBackend.Application.UseCases.System;
 public class AuditService(IAuditRepository auditRepository)
 {
     public async Task<PagedResult<Audit>> GetAllAsync(PageRequest page, CancellationToken ct = default)
-        => await auditRepository.GetAllAsync(page, ct);
+    {
+        return await auditRepository.GetAllAsync(page, ct);
+    }
 
     public async Task<PagedResult<AuditDto>> SearchAsync(
         SearchAuditDto dto,
         CancellationToken ct = default)
-        => await auditRepository.SearchAsync(dto, ct);
+    {
+        return await auditRepository.SearchAsync(dto, ct);
+    }
 }

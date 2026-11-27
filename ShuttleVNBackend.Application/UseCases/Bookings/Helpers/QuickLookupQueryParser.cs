@@ -28,6 +28,8 @@ public static class QuickLookupQueryParser
         return new QuickLookupQuery(QuickLookupMatchType.Phone, phone);
     }
 
-    private static ValidationException Invalid(string message) =>
-        new(errors: new Dictionary<string, string[]> { ["Keyword"] = [message] });
+    private static ValidationException Invalid(string message)
+    {
+        return new ValidationException(errors: new Dictionary<string, string[]> { ["Keyword"] = [message] });
+    }
 }

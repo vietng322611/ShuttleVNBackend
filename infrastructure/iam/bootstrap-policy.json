@@ -42,7 +42,9 @@
     {
       "Sid": "ReadOwnIdentity",
       "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity"],
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
       "Resource": "*"
     }
   ]

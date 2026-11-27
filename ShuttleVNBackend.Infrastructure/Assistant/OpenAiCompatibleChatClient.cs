@@ -23,8 +23,9 @@ public sealed class OpenAiCompatibleChatClient(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly AssistantOptions _settings = options.Value;
     private readonly JsonObject _extraBody = ParseExtraBody(options.Value.ExtraBody);
+
+    private readonly AssistantOptions _settings = options.Value;
 
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         ChatCompletionRequest request,
@@ -33,9 +34,7 @@ public sealed class OpenAiCompatibleChatClient(
         if (string.IsNullOrWhiteSpace(_settings.BaseUrl)
             || string.IsNullOrWhiteSpace(_settings.Model)
             || string.IsNullOrWhiteSpace(_settings.ApiKey))
-        {
             throw new AssistantUnavailableException();
-        }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(_settings.TimeoutSeconds));
@@ -57,7 +56,8 @@ public sealed class OpenAiCompatibleChatClient(
 
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Upstream AI provider returned non-success status code: {StatusCode}", (int)response.StatusCode);
+                logger.LogWarning("Upstream AI provider returned non-success status code: {StatusCode}",
+                    (int)response.StatusCode);
                 throw new AssistantUnavailableException();
             }
 
@@ -67,7 +67,8 @@ public sealed class OpenAiCompatibleChatClient(
             exception is HttpRequestException or OperationCanceledException
             && !ct.IsCancellationRequested)
         {
-            logger.LogWarning(exception, "Upstream AI provider request failed with error: {ErrorType}", exception.GetType().Name);
+            logger.LogWarning(exception, "Upstream AI provider request failed with error: {ErrorType}",
+                exception.GetType().Name);
             response?.Dispose();
             throw new AssistantUnavailableException();
         }
@@ -80,10 +81,7 @@ public sealed class OpenAiCompatibleChatClient(
 
             while (await ReadEventDataAsync(reader, timeout.Token) is { } data)
             {
-                if (data == "[DONE]")
-                {
-                    break;
-                }
+                if (data == "[DONE]") break;
 
                 ChatStreamEvent? emitted = null;
                 try
@@ -95,16 +93,10 @@ public sealed class OpenAiCompatibleChatClient(
                     continue;
                 }
 
-                if (emitted is not null)
-                {
-                    yield return emitted;
-                }
+                if (emitted is not null) yield return emitted;
             }
 
-            if (accumulator.HasCalls)
-            {
-                yield return new ChatStreamEvent.ToolCallsReady(accumulator.Build());
-            }
+            if (accumulator.HasCalls) yield return new ChatStreamEvent.ToolCallsReady(accumulator.Build());
         }
     }
 
@@ -127,20 +119,14 @@ public sealed class OpenAiCompatibleChatClient(
             tool_choice = request.Tools.Count == 0 ? null : request.ToolChoice
         }, Json)!.AsObject();
 
-        foreach (var (key, value) in _extraBody)
-        {
-            payload[key] = value?.DeepClone();
-        }
+        foreach (var (key, value) in _extraBody) payload[key] = value?.DeepClone();
 
         return payload;
     }
 
     private static JsonObject ParseExtraBody(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
+        if (string.IsNullOrWhiteSpace(json)) return [];
 
         try
         {
@@ -178,25 +164,18 @@ public sealed class OpenAiCompatibleChatClient(
             if (!root.TryGetProperty("choices", out var choices)
                 || choices.ValueKind != JsonValueKind.Array
                 || choices.GetArrayLength() == 0)
-            {
                 return null;
-            }
 
             var choice = choices[0];
 
-            if (!choice.TryGetProperty("delta", out var delta))
-            {
-                return null;
-            }
+            if (!choice.TryGetProperty("delta", out var delta)) return null;
 
             accumulator.Read(delta);
 
             if (delta.TryGetProperty("content", out var content)
                 && content.ValueKind == JsonValueKind.String
                 && content.GetString() is { Length: > 0 } text)
-            {
                 return new ChatStreamEvent.TextDelta(text);
-            }
 
             return null;
         }
@@ -210,10 +189,7 @@ public sealed class OpenAiCompatibleChatClient(
         {
             if (line.Length == 0)
             {
-                if (builder.Length > 0)
-                {
-                    return builder.ToString();
-                }
+                if (builder.Length > 0) return builder.ToString();
 
                 continue;
             }
@@ -221,10 +197,7 @@ public sealed class OpenAiCompatibleChatClient(
             if (line.StartsWith("data:", StringComparison.Ordinal))
             {
                 var payload = line[5..].TrimStart();
-                if (builder.Length > 0)
-                {
-                    builder.Append('\n');
-                }
+                if (builder.Length > 0) builder.Append('\n');
 
                 builder.Append(payload);
             }

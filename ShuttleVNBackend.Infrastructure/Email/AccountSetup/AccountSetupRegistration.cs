@@ -30,4 +30,3 @@ public static class AccountSetupRegistration
                && uri.Scheme is "http" or "https";
     }
 }
-

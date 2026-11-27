@@ -18,50 +18,45 @@ public sealed class BookingLifecycle(
     public void Authorize(Booking booking)
     {
         if (currentUser.ActorId is null || currentUser.ActorType is not (ActorType.Customer or ActorType.Employee))
-        {
             throw new UnauthorizedException();
-        }
         if (currentUser.ActorType == ActorType.Customer && booking.CustomerId != currentUser.ActorId)
-        {
             throw new NotFoundException("Booking not found.");
-        }
     }
 
     public async Task<Booking> LockAsync(Guid bookingId, int? targetCourtId = null, CancellationToken ct = default)
     {
-        var snapshot = await bookingRepository.GetByIdAsync(bookingId, ct) ?? throw new NotFoundException("Booking not found.");
-        foreach (var courtId in new[] {
-                snapshot.CourtId,
-                targetCourtId ?? snapshot.CourtId
-            }.Distinct().Order()
-        )
-        {
+        var snapshot = await bookingRepository.GetByIdAsync(bookingId, ct) ??
+                       throw new NotFoundException("Booking not found.");
+        foreach (var courtId in new[]
+                 {
+                     snapshot.CourtId,
+                     targetCourtId ?? snapshot.CourtId
+                 }.Distinct().Order()
+                )
             await unitOfWork.LockCourtAsync(courtId, ct);
-        }
         await unitOfWork.LockBookingAsync(bookingId, ct);
-        var booking = await bookingRepository.GetFreshDetailsAsync(bookingId, ct) ?? throw new NotFoundException("Booking not found.");
+        var booking = await bookingRepository.GetFreshDetailsAsync(bookingId, ct) ??
+                      throw new NotFoundException("Booking not found.");
         if (booking.CourtId != snapshot.CourtId)
-        {
             throw new ConflictException("Booking court changed; reload and retry.");
-        }
         return booking;
     }
 
     public Task<bool> SettleAsync(Guid bookingId, CancellationToken ct = default)
-        => unitOfWork.ExecuteInTransactionAsync(async token =>
+    {
+        return unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             var booking = await LockAsync(bookingId, ct: token);
             Authorize(booking);
             return await SettleLockedAsync(booking, token);
         }, ct);
+    }
 
     public async Task<bool> SettleLockedAsync(Booking booking, CancellationToken ct = default)
     {
         if (VietnamTime.ToLocalDateTime(booking.Date, booking.EndTime) > VietnamTime.NowLocal(clock) ||
             booking.Status is not (BookingStatus.Pending or BookingStatus.Confirmed))
-        {
             return false;
-        }
 
         var now = clock.GetUtcNow().UtcDateTime;
         var oldStatus = booking.Status;

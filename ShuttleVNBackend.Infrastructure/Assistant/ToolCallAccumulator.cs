@@ -6,7 +6,7 @@ using ShuttleVNBackend.Application.Interfaces.Assistant;
 namespace ShuttleVNBackend.Infrastructure.Assistant;
 
 /// <summary>
-/// Reassembles streamed tool calls. OpenAI streams `arguments` in fragments grouped by index.
+///     Reassembles streamed tool calls. OpenAI streams `arguments` in fragments grouped by index.
 /// </summary>
 internal sealed class ToolCallAccumulator
 {
@@ -18,9 +18,7 @@ internal sealed class ToolCallAccumulator
     {
         if (!delta.TryGetProperty("tool_calls", out var toolCalls)
             || toolCalls.ValueKind != JsonValueKind.Array)
-        {
             return;
-        }
 
         foreach (var call in toolCalls.EnumerateArray())
         {
@@ -32,25 +30,17 @@ internal sealed class ToolCallAccumulator
             var fragment = _calls.GetOrAdd(index, _ => new Fragment());
 
             if (call.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
-            {
                 fragment.Id = id.GetString();
-            }
 
             if (!call.TryGetProperty("function", out var function)
                 || function.ValueKind != JsonValueKind.Object)
-            {
                 continue;
-            }
 
             if (function.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String)
-            {
                 fragment.Name = name.GetString();
-            }
 
             if (function.TryGetProperty("arguments", out var args) && args.ValueKind == JsonValueKind.String)
-            {
                 fragment.Arguments.Append(args.GetString());
-            }
         }
     }
 

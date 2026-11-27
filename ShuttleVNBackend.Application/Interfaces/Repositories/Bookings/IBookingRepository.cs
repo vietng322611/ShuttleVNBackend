@@ -15,12 +15,16 @@ public interface IBookingRepository
     Task<BookingRow?> GetRowByIdAsync(Guid bookingId, CancellationToken ct = default);
     Task<BookingInvoiceDto?> GetValidInvoiceAsync(Guid bookingId, CancellationToken ct = default);
     Task<List<BookingStatusHistoryDto>> GetStatusHistoryAsync(Guid bookingId, CancellationToken ct = default);
+
     Task<bool> HasOverlapAsync(int courtId, DateOnly date, TimeOnly start, TimeOnly end,
         Guid excludeBookingId, CancellationToken ct = default);
+
     Task<PagedResult<BookingRow>> GetByCustomerAsync(Guid customerId, PageRequest page,
         CancellationToken ct = default);
+
     Task<PagedResult<BookingRow>> SearchAsync(BookingSearchCriteria criteria, PageRequest page,
         CancellationToken ct = default);
+
     Task<PagedResult<BookingRow>> SearchByLookupAsync(QuickLookupQuery query, PageRequest page,
         CancellationToken ct = default);
 
@@ -29,7 +33,10 @@ public interface IBookingRepository
     Task<Booking?> GetByIdWithDetailsAsync(Guid bookingId, CancellationToken ct = default);
     Task<Booking?> GetFreshDetailsAsync(Guid bookingId, CancellationToken ct = default);
     Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
-    Task<PagedResult<Booking>> GetByCustomerWithDetailsAsync(Guid customerId, PageRequest page, CancellationToken ct = default);
+
+    Task<PagedResult<Booking>> GetByCustomerWithDetailsAsync(Guid customerId, PageRequest page,
+        CancellationToken ct = default);
+
     Task<CourtSchedule?> GetScheduleAsync(int courtId, int dayOfWeek, CancellationToken ct = default);
     Task<List<PricingRule>> GetPricingRulesAsync(int courtId, int dayOfWeek, CancellationToken ct = default);
 }

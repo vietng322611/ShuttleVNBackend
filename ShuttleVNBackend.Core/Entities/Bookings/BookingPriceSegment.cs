@@ -5,6 +5,7 @@ namespace ShuttleVNBackend.Core.Entities.Bookings;
 [NoAudit]
 public class BookingPriceSegment
 {
+    private Booking? _booking;
     public Guid BookingId { get; set; }
     public int SegmentNo { get; set; }
     public TimeOnly PriceStartTime { get; set; }
@@ -12,7 +13,6 @@ public class BookingPriceSegment
     public TimeOnly SegmentEndTime { get; set; }
     public decimal PricePerHour { get; set; }
 
-    private Booking? _booking;
     public virtual Booking Booking
     {
         get => _booking ?? throw new InvalidOperationException("Uninitialized property: " + nameof(Booking));

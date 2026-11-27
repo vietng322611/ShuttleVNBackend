@@ -18,10 +18,10 @@ public sealed class AssistantOptions
     public int AvailabilityHorizonDays { get; set; } = 30;
 
     /// <summary>
-    /// Raw JSON merged into every request payload, e.g.
-    /// <c>{"reasoning_effort":"none"}</c> or <c>{"enable_thinking":false}</c>.
-    /// Used to disable provider-specific reasoning because tool calling is
-    /// unsupported while reasoning is active on some models.
+    ///     Raw JSON merged into every request payload, e.g.
+    ///     <c>{"reasoning_effort":"none"}</c> or <c>{"enable_thinking":false}</c>.
+    ///     Used to disable provider-specific reasoning because tool calling is
+    ///     unsupported while reasoning is active on some models.
     /// </summary>
     public string ExtraBody { get; set; } = "{}";
 }

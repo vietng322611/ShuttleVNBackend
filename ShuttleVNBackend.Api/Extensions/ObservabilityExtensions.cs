@@ -13,10 +13,7 @@ public static class ObservabilityExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        if (!configuration.GetValue<bool>("Otel:Enabled"))
-        {
-            return services;
-        }
+        if (!configuration.GetValue<bool>("Otel:Enabled")) return services;
 
         var otlpEndpoint = configuration["Otel:Endpoint"];
 
@@ -34,7 +31,6 @@ public static class ObservabilityExtensions
                     .AddHttpClientInstrumentation();
 
                 if (!string.IsNullOrWhiteSpace(otlpEndpoint))
-                {
                     // Tempo exposes the OTLP HTTP receiver only, but the
                     // exporter defaults to gRPC.
                     tracing.AddOtlpExporter(options =>
@@ -42,7 +38,6 @@ public static class ObservabilityExtensions
                         options.Endpoint = new Uri(otlpEndpoint);
                         options.Protocol = OtlpExportProtocol.HttpProtobuf;
                     });
-                }
             });
 
         return services;

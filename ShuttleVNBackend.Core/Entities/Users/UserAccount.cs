@@ -7,8 +7,9 @@ public class UserAccount
 {
     public Guid AccountId { get; set; }
     public string LoginEmail { get; set; } = null!;
-    [NoAudit]
-    public string PasswordHash { get; set; } = "";
+
+    [NoAudit] public string PasswordHash { get; set; } = "";
+
     public AccountType AccountType { get; set; }
     public AccountStatus Status { get; set; }
     public int FailedLoginAttempts { get; set; }
@@ -18,7 +19,9 @@ public class UserAccount
     public virtual Customer? Customer { get; set; }
     public virtual Employee? Employee { get; set; }
 
-    public string GetRole() =>
-        AccountType == AccountType.Customer ? "Customer"
-        : Employee?.IsAdmin == true ? "Admin" : "Employee";
+    public string GetRole()
+    {
+        return AccountType == AccountType.Customer ? "Customer"
+            : Employee?.IsAdmin == true ? "Admin" : "Employee";
+    }
 }

@@ -4,8 +4,8 @@ using ShuttleVNBackend.Application.Interfaces.Assistant;
 namespace ShuttleVNBackend.Application.UseCases.Assistant.Tools;
 
 /// <summary>
-/// Tool whose user-facing sentence is written by the harness: the model picks the branch,
-/// never the wording, so injection cannot reshape a refusal or a policy answer.
+///     Tool whose user-facing sentence is written by the harness: the model picks the branch,
+///     never the wording, so injection cannot reshape a refusal or a policy answer.
 /// </summary>
 public interface IAssistantReplyTool : IAssistantTool
 {
@@ -13,7 +13,7 @@ public interface IAssistantReplyTool : IAssistantTool
 }
 
 /// <summary>
-/// Answers a known FAQ topic from the server catalog.
+///     Answers a known FAQ topic from the server catalog.
 /// </summary>
 public sealed class AnswerFaqTool : IAssistantReplyTool
 {
@@ -46,21 +46,24 @@ public sealed class AnswerFaqTool : IAssistantReplyTool
         return Task.FromResult(new ToolOutcome(false, new { topic = ReadTopic(arguments) }));
     }
 
-    public string BuildReply(JsonElement arguments) => AssistantFaq.Answer(ReadTopic(arguments));
+    public string BuildReply(JsonElement arguments)
+    {
+        return AssistantFaq.Answer(ReadTopic(arguments));
+    }
 
     private static string? ReadTopic(JsonElement arguments)
     {
         return arguments.ValueKind == JsonValueKind.Object
-            && arguments.TryGetProperty("topic", out var topic)
-            && topic.ValueKind == JsonValueKind.String
-                ? topic.GetString()
-                : null;
+               && arguments.TryGetProperty("topic", out var topic)
+               && topic.ValueKind == JsonValueKind.String
+            ? topic.GetString()
+            : null;
     }
 }
 
 /// <summary>
-/// The only path to a refusal: the semantic decision carries a schema instead of relying
-/// on keyword matching that any phrasing can dodge.
+///     The only path to a refusal: the semantic decision carries a schema instead of relying
+///     on keyword matching that any phrasing can dodge.
 /// </summary>
 public sealed class DeclineOutOfScopeTool : IAssistantReplyTool
 {
@@ -96,24 +99,27 @@ public sealed class DeclineOutOfScopeTool : IAssistantReplyTool
         return Task.FromResult(new ToolOutcome(false, new { declined = true }));
     }
 
-    public string BuildReply(JsonElement arguments) => ReadReason(arguments) switch
+    public string BuildReply(JsonElement arguments)
     {
-        "greeting" =>
-            "Chào bạn! Mình là trợ lý của ShuttleVN. Bạn muốn hỏi về giá sân, khung giờ trống hay cách đặt sân không?",
-        "unsupported_action" =>
-            "Mình chỉ tư vấn, không thực hiện đặt, hủy hay thanh toán. " +
-            "Bạn dùng màn Đặt sân / Lịch sử đặt sân trên website hoặc liên hệ nhân viên để được hỗ trợ.",
-        _ =>
-            "Mình chỉ tư vấn về sân cầu lông ShuttleVN: giá, khung giờ trống, cách đặt sân và các câu hỏi thường gặp. " +
-            "Bạn muốn hỏi gì về sân không?"
-    };
+        return ReadReason(arguments) switch
+        {
+            "greeting" =>
+                "Chào bạn! Mình là trợ lý của ShuttleVN. Bạn muốn hỏi về giá sân, khung giờ trống hay cách đặt sân không?",
+            "unsupported_action" =>
+                "Mình chỉ tư vấn, không thực hiện đặt, hủy hay thanh toán. " +
+                "Bạn dùng màn Đặt sân / Lịch sử đặt sân trên website hoặc liên hệ nhân viên để được hỗ trợ.",
+            _ =>
+                "Mình chỉ tư vấn về sân cầu lông ShuttleVN: giá, khung giờ trống, cách đặt sân và các câu hỏi thường gặp. " +
+                "Bạn muốn hỏi gì về sân không?"
+        };
+    }
 
     private static string? ReadReason(JsonElement arguments)
     {
         return arguments.ValueKind == JsonValueKind.Object
-            && arguments.TryGetProperty("reason", out var reason)
-            && reason.ValueKind == JsonValueKind.String
-                ? reason.GetString()
-                : null;
+               && arguments.TryGetProperty("reason", out var reason)
+               && reason.ValueKind == JsonValueKind.String
+            ? reason.GetString()
+            : null;
     }
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using ShuttleVNBackend.Application.Common;
 using ShuttleVNBackend.Application.DTOs.Bookings;
 using ShuttleVNBackend.Application.Exceptions;
@@ -24,16 +25,25 @@ public class BookingRequestService(
     BookingLifecycle lifecycle)
 {
     public Task<BookingDetailDto> ConfirmAsync(Guid bookingId, ConfirmBookingDto dto, string key,
-        CancellationToken ct = default) => ExecuteMutationAsync(bookingId, key, "booking.confirm",
-        NormalizePayment(dto), token => ConfirmCoreAsync(bookingId, dto, token), ct);
+        CancellationToken ct = default)
+    {
+        return ExecuteMutationAsync(bookingId, key, "booking.confirm",
+            NormalizePayment(dto), token => ConfirmCoreAsync(bookingId, dto, token), ct);
+    }
 
     public Task<BookingDetailDto> RejectAsync(Guid bookingId, RejectBookingDto dto, string key,
-        CancellationToken ct = default) => ExecuteMutationAsync(bookingId, key, "booking.reject",
-        new { Reason = dto.Reason?.Trim() }, token => RejectCoreAsync(bookingId, dto, token), ct);
+        CancellationToken ct = default)
+    {
+        return ExecuteMutationAsync(bookingId, key, "booking.reject",
+            new { Reason = dto.Reason?.Trim() }, token => RejectCoreAsync(bookingId, dto, token), ct);
+    }
 
     public Task<BookingDetailDto> CompleteAsync(Guid bookingId, ConfirmBookingDto? dto, string key,
-        CancellationToken ct = default) => ExecuteMutationAsync(bookingId, key, "booking.complete",
-        NormalizePayment(dto), token => CompleteCoreAsync(bookingId, dto, token), ct);
+        CancellationToken ct = default)
+    {
+        return ExecuteMutationAsync(bookingId, key, "booking.complete",
+            NormalizePayment(dto), token => CompleteCoreAsync(bookingId, dto, token), ct);
+    }
 
     private async Task<BookingDetailDto> ExecuteMutationAsync(Guid bookingId, string key, string operation,
         object payload, Func<CancellationToken, Task<BookingMutationResponse<BookingDetailDto>>> action,
@@ -54,24 +64,25 @@ public class BookingRequestService(
         await lifecycle.LockAsync(bookingId, ct: ct);
     }
 
-    private static object NormalizePayment(ConfirmBookingDto? dto) => new
+    private static object NormalizePayment(ConfirmBookingDto? dto)
     {
-        HasPayment = dto is not null,
-        dto?.IsPaid,
-        Amount = dto?.Amount?.ToString("G29", global::System.Globalization.CultureInfo.InvariantCulture),
-        dto?.PaymentMethod,
-        dto?.PaidAt,
-        Note = dto?.Note?.Trim() ?? string.Empty
-    };
+        return new
+        {
+            HasPayment = dto is not null,
+            dto?.IsPaid,
+            Amount = dto?.Amount?.ToString("G29", CultureInfo.InvariantCulture),
+            dto?.PaymentMethod,
+            dto?.PaidAt,
+            Note = dto?.Note?.Trim() ?? string.Empty
+        };
+    }
 
     public async Task SettleEndedBookingsAsync(CancellationToken ct = default)
     {
         var localCutoff = VietnamTime.NowLocal(clock);
         var bookingIds = await bookingRepository.GetSettlementCandidateIdsAsync(localCutoff, ct);
         foreach (var bookingId in bookingIds)
-        {
             await unitOfWork.ExecuteInTransactionAsync(token => SettleBookingAsync(bookingId, token), ct);
-        }
     }
 
     private async Task<bool> SettleBookingAsync(Guid bookingId, CancellationToken ct)
@@ -102,7 +113,8 @@ public class BookingRequestService(
         return row.ToDetail(invoice, history);
     }
 
-    private async Task<BookingMutationResponse<BookingDetailDto>> ConfirmCoreAsync(Guid bookingId, ConfirmBookingDto dto,
+    private async Task<BookingMutationResponse<BookingDetailDto>> ConfirmCoreAsync(Guid bookingId,
+        ConfirmBookingDto dto,
         CancellationToken ct = default)
     {
         var employeeId = RequireEmployeeId();
@@ -118,27 +130,18 @@ public class BookingRequestService(
     {
         var booking = await lifecycle.LockAsync(bookingId, ct: ct);
         if (await lifecycle.SettleLockedAsync(booking, ct))
-        {
             return "Booking end time passed; booking was settled automatically. Reload its current state.";
-        }
 
         ValidatePayment(dto, booking.TotalCost);
 
-        if (booking.Status == BookingStatus.Confirmed)
-        {
-            return null;
-        }
+        if (booking.Status == BookingStatus.Confirmed) return null;
 
         if (booking.Status != BookingStatus.Pending)
-        {
             throw new ConflictException($"The booking is already {booking.Status}.");
-        }
 
         if (HasStarted(booking))
-        {
             throw new ConflictException(
                 "The booking has already started; confirmation is no longer allowed.");
-        }
 
         await EnsureCourtAvailableAsync(booking, ct);
 
@@ -154,12 +157,10 @@ public class BookingRequestService(
     {
         var reason = dto.Reason?.Trim();
         if (string.IsNullOrEmpty(reason))
-        {
             throw new ValidationException(errors: new Dictionary<string, string[]>
             {
                 ["Reason"] = ["Reason is required"]
             });
-        }
 
         var employeeId = RequireEmployeeId();
         var conflict = await unitOfWork.ExecuteInTransactionAsync<string?>(
@@ -172,25 +173,16 @@ public class BookingRequestService(
     {
         var booking = await lifecycle.LockAsync(bookingId, ct: ct);
         if (await lifecycle.SettleLockedAsync(booking, ct))
-        {
             return "Booking end time passed; booking was settled automatically. Reload its current state.";
-        }
 
-        if (booking.Status == BookingStatus.Cancelled)
-        {
-            return null;
-        }
+        if (booking.Status == BookingStatus.Cancelled) return null;
 
         if (booking.Status == BookingStatus.Confirmed)
-        {
             throw new ConflictException(
                 "Confirmed bookings cannot be rejected; use the cancellation flow instead.");
-        }
 
         if (booking.Status != BookingStatus.Pending)
-        {
             throw new ConflictException($"The booking is already {booking.Status}.");
-        }
 
         var now = clock.GetUtcNow().UtcDateTime;
         await ChangeStatusAsync(booking, BookingStatus.Cancelled, employeeId, reason, now, ct);
@@ -198,7 +190,8 @@ public class BookingRequestService(
         return null;
     }
 
-    private async Task<BookingMutationResponse<BookingDetailDto>> CompleteCoreAsync(Guid bookingId, ConfirmBookingDto? dto,
+    private async Task<BookingMutationResponse<BookingDetailDto>> CompleteCoreAsync(Guid bookingId,
+        ConfirmBookingDto? dto,
         CancellationToken ct = default)
     {
         RequireEmployeeId();
@@ -213,24 +206,18 @@ public class BookingRequestService(
     {
         var booking = await lifecycle.LockAsync(bookingId, ct: ct);
         if (await lifecycle.SettleLockedAsync(booking, ct))
-        {
             return "Booking end time passed; booking was settled automatically. Reload its current state.";
-        }
 
-        if (booking.Status == BookingStatus.Completed)
-        {
-            return null;
-        }
+        if (booking.Status == BookingStatus.Completed) return null;
 
-        if (booking.Status == BookingStatus.Cancelled)
-        {
-            throw new ConflictException("The booking is already Cancelled.");
-        }
+        if (booking.Status == BookingStatus.Cancelled) throw new ConflictException("The booking is already Cancelled.");
 
-        throw new ConflictException("The booking has not ended yet; manual completion cannot bypass automatic settlement.");
+        throw new ConflictException(
+            "The booking has not ended yet; manual completion cannot bypass automatic settlement.");
     }
 
-    private async Task<BookingMutationResponse<BookingDetailDto>> FinishAsync(Guid bookingId, string? conflict, CancellationToken ct)
+    private async Task<BookingMutationResponse<BookingDetailDto>> FinishAsync(Guid bookingId, string? conflict,
+        CancellationToken ct)
     {
         return conflict is not null
             ? new BookingMutationResponse<BookingDetailDto>(null, conflict, bookingId)
@@ -300,7 +287,8 @@ public class BookingRequestService(
         var schedules = await courtRepository.GetSchedulesAsync(booking.CourtId, ct) ?? [];
         var isoDay = booking.Date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)booking.Date.DayOfWeek;
         var isOpen = schedules.Any(s => s.DayOfWeek == isoDay && s.IsAvailable
-                                        && s.OpenTime <= booking.StartTime && booking.EndTime <= s.CloseTime);
+                                                              && s.OpenTime <= booking.StartTime &&
+                                                              booking.EndTime <= s.CloseTime);
         if (!isOpen)
             throw new ConflictException("The court is not available at the requested time.");
 
@@ -314,9 +302,7 @@ public class BookingRequestService(
         if (dto.IsPaid)
         {
             if (dto.Amount is null || dto.PaymentMethod is null || dto.PaidAt is null)
-            {
                 throw new ValidationException("Payment amount, method and actual UTC payment time are required.");
-            }
 
             InvoiceRules.ValidatePayment(dto.Amount.Value, total, dto.PaymentMethod.Value,
                 dto.PaidAt.Value, clock.GetUtcNow().UtcDateTime);

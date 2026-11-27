@@ -69,10 +69,8 @@ public sealed class BookingRescheduleService(
     {
         var booking = await lifecycle.LockAsync(bookingId, dto.CourtId, ct);
         if (await lifecycle.SettleLockedAsync(booking, ct))
-        {
             return new BookingMutationResponse<BookingDto>(null,
                 "Booking end time passed; booking settled. Reload.", bookingId);
-        }
 
         InvoiceRules.CheckState(booking, dto.ExpectedState);
         var priceRequest = dto.ToPricePreviewDto();
@@ -82,10 +80,7 @@ public sealed class BookingRescheduleService(
 
         if (IsUnchanged(booking, priceRequest))
         {
-            if (dto.Refund is not null)
-            {
-                throw new ValidationException("An unchanged booking cannot receive a refund.");
-            }
+            if (dto.Refund is not null) throw new ValidationException("An unchanged booking cannot receive a refund.");
 
             return new BookingMutationResponse<BookingDto>(BookingDto.FromEntity(booking), BookingId: bookingId);
         }
@@ -97,7 +92,7 @@ public sealed class BookingRescheduleService(
         await unitOfWork.SaveChangesAsync(ct);
 
         var saved = await bookingRepository.GetFreshDetailsAsync(bookingId, ct)
-            ?? throw new NotFoundException("Booking not found.");
+                    ?? throw new NotFoundException("Booking not found.");
         return new BookingMutationResponse<BookingDto>(BookingDto.FromEntity(saved), BookingId: bookingId);
     }
 
@@ -107,13 +102,9 @@ public sealed class BookingRescheduleService(
         var segmentNumbers = quote.Segments.Select(segment => segment.SegmentNo).ToHashSet();
         var removed = booking.PriceSegments.Where(segment => !segmentNumbers.Contains(segment.SegmentNo)).ToList();
         unitOfWork.RemoveRange(removed);
-        foreach (var segment in removed)
-        {
-            booking.PriceSegments.Remove(segment);
-        }
+        foreach (var segment in removed) booking.PriceSegments.Remove(segment);
 
         foreach (var segment in quote.Segments)
-        {
             if (existing.TryGetValue(segment.SegmentNo, out var saved))
             {
                 saved.PriceStartTime = segment.PriceStartTime;
@@ -125,7 +116,6 @@ public sealed class BookingRescheduleService(
             {
                 booking.PriceSegments.Add(segment.ToEntity(booking.BookingId));
             }
-        }
     }
 
     private void ApplyReschedule(Booking booking, RescheduleBookingDto dto, decimal totalCost)
@@ -141,22 +131,16 @@ public sealed class BookingRescheduleService(
     private void ValidateBooking(Booking booking, PricePreviewDto dto)
     {
         if (booking.Status is not (BookingStatus.Pending or BookingStatus.Confirmed))
-        {
             throw new ConflictException("Only pending or confirmed bookings can be rescheduled.");
-        }
 
         var cutoff = VietnamTime.NowLocal(clock).AddHours(1);
         if (VietnamTime.ToLocalDateTime(booking.Date, booking.StartTime) < cutoff ||
             VietnamTime.ToLocalDateTime(dto.Date, dto.StartTime) < cutoff)
-        {
             throw new ConflictException("Original and new start times must be at least one hour after server time.");
-        }
 
         if (currentUser.ActorType == ActorType.Customer &&
             InvoiceRules.ValidInvoice(booking)?.Status == InvoiceStatus.Paid)
-        {
             throw new ConflictException("Paid bookings must be rescheduled through an employee.");
-        }
 
         BookingService.ValidateTimeSlot(dto.StartTime, dto.EndTime);
     }
@@ -173,55 +157,43 @@ public sealed class BookingRescheduleService(
         }
 
         var court = await courtRepository.GetByIdAsync(dto.CourtId, ct);
-        if (court?.Status != CourtStatus.Active)
-        {
-            throw new ConflictException("Target court is not active.");
-        }
+        if (court?.Status != CourtStatus.Active) throw new ConflictException("Target court is not active.");
 
         var day = dto.Date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)dto.Date.DayOfWeek;
         var schedules = await courtRepository.GetSchedulesAsync(dto.CourtId, ct) ?? [];
         var isOpen = schedules.Any(schedule => schedule.DayOfWeek == day && schedule.IsAvailable &&
-            schedule.OpenTime <= dto.StartTime && schedule.CloseTime >= dto.EndTime);
-        if (!isOpen)
-        {
-            throw new ConflictException("Target slot is outside available opening hours.");
-        }
+                                               schedule.OpenTime <= dto.StartTime && schedule.CloseTime >= dto.EndTime);
+        if (!isOpen) throw new ConflictException("Target slot is outside available opening hours.");
 
         if (await bookingRepository.HasOverlapAsync(dto.CourtId, dto.Date, dto.StartTime, dto.EndTime,
                 booking.BookingId, ct))
-        {
             throw new ConflictException("Target slot overlaps another booking.");
-        }
 
         var rules = await bookingRepository.GetPricingRulesAsync(dto.CourtId, day, ct);
         var (cost, priceSegments) = BookingService.CalculatePrice(dto.StartTime, dto.EndTime, rules);
         return BookingQuote.Create(dto.CourtId, dto.Date, dto.StartTime, dto.EndTime, cost, priceSegments);
     }
 
-    private async Task ReplaceInvoiceAsync(Booking booking, decimal newTotal, RescheduleBookingDto dto, CancellationToken ct)
+    private async Task ReplaceInvoiceAsync(Booking booking, decimal newTotal, RescheduleBookingDto dto,
+        CancellationToken ct)
     {
         var invoice = InvoiceRules.ValidInvoice(booking);
         if (booking.Status == BookingStatus.Pending)
         {
             if (invoice is not null || dto.Refund is not null)
-            {
                 throw new ConflictException("Pending bookings must not have a valid invoice or refund.");
-            }
 
             return;
         }
 
         if (invoice is null || invoice.TotalCost != booking.TotalCost)
-        {
             throw new ConflictException("Booking has no matching valid invoice.");
-        }
 
         if (invoice.Status == InvoiceStatus.Paid && newTotal == invoice.TotalCost)
         {
             if (dto.Refund is not null)
-            {
-                throw new ValidationException("Same-total paid reschedules retain their paid invoice; no refund is allowed.");
-            }
+                throw new ValidationException(
+                    "Same-total paid reschedules retain their paid invoice; no refund is allowed.");
 
             return;
         }
@@ -245,32 +217,35 @@ public sealed class BookingRescheduleService(
         await unitOfWork.AddAsync(replacement, ct);
     }
 
-    private Task EnqueueAsync(Booking booking, CancellationToken ct) => unitOfWork.AddAsync(new Notification
+    private Task EnqueueAsync(Booking booking, CancellationToken ct)
     {
-        NotificationId = Guid.NewGuid(),
-        EventKey = $"reschedule:{Guid.NewGuid():N}",
-        CustomerId = booking.CustomerId,
-        RecipientEmail = booking.Customer.Email,
-        BookingId = booking.BookingId,
-        EventType = "BookingRescheduled",
-        Status = "PENDING",
-        CreatedAt = clock.GetUtcNow().UtcDateTime,
-        Payload = JsonSerializer.Serialize(new
+        return unitOfWork.AddAsync(new Notification
         {
-            booking.BookingCode,
-            booking.CourtId,
-            booking.Date,
-            booking.StartTime,
-            booking.EndTime,
-            booking.TotalCost
-        })
-    }, ct);
+            NotificationId = Guid.NewGuid(),
+            EventKey = $"reschedule:{Guid.NewGuid():N}",
+            CustomerId = booking.CustomerId,
+            RecipientEmail = booking.Customer.Email,
+            BookingId = booking.BookingId,
+            EventType = "BookingRescheduled",
+            Status = "PENDING",
+            CreatedAt = clock.GetUtcNow().UtcDateTime,
+            Payload = JsonSerializer.Serialize(new
+            {
+                booking.BookingCode,
+                booking.CourtId,
+                booking.Date,
+                booking.StartTime,
+                booking.EndTime,
+                booking.TotalCost
+            })
+        }, ct);
+    }
 
     private static bool IsUnchanged(Booking booking, PricePreviewDto dto)
     {
         return booking.CourtId == dto.CourtId &&
-            booking.Date == dto.Date &&
-            booking.StartTime == dto.StartTime &&
-            booking.EndTime == dto.EndTime;
+               booking.Date == dto.Date &&
+               booking.StartTime == dto.StartTime &&
+               booking.EndTime == dto.EndTime;
     }
 }

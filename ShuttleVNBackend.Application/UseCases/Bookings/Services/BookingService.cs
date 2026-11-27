@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using ShuttleVNBackend.Application.Common;
@@ -27,6 +28,9 @@ public class BookingService(
     IBookingIdempotency idempotency,
     BookingLifecycle lifecycle)
 {
+    private static readonly TimeZoneInfo VietnamTz =
+        TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+
     public async Task<BookingDto> CreateBookingAsync(CreateBookingDto dto, string key, CancellationToken ct = default)
     {
         var scope = idempotency.GetScope();
@@ -37,9 +41,7 @@ public class BookingService(
                     currentUser.ActorType != ActorType.Customer ||
                     currentUser.ActorId is null ||
                     await customerRepository.GetByIdAsync(currentUser.ActorId.Value, token) is null)
-                {
                     throw new UnauthorizedException("Customer profile not found.");
-                }
             },
             async token =>
             {
@@ -53,7 +55,7 @@ public class BookingService(
     {
         ValidateContactInfo(dto.FullName, dto.Phone, dto.Email);
         var response = await idempotency.ExecuteAsync(
-            idempotency.GetScope(guest: true, requireEstablished: true),
+            idempotency.GetScope(true, true),
             key,
             "booking.quick",
             null,
@@ -79,7 +81,8 @@ public class BookingService(
             new { dto.ExpectedState, Reason = dto.Reason.Trim(), dto.Refund },
             async token =>
             {
-                if (currentUser.ActorId is null || currentUser.ActorType is not (ActorType.Customer or ActorType.Employee))
+                if (currentUser.ActorId is null ||
+                    currentUser.ActorType is not (ActorType.Customer or ActorType.Employee))
                     throw new UnauthorizedException();
 
                 var booking = await lifecycle.LockAsync(bookingId, ct: token);
@@ -89,31 +92,30 @@ public class BookingService(
             {
                 var booking = await lifecycle.LockAsync(bookingId, ct: token);
                 if (await lifecycle.SettleLockedAsync(booking, token))
-                {
-                    return new BookingMutationResponse<BookingDto>(null, "Booking end time passed; booking settled. Reload.", bookingId);
-                }
+                    return new BookingMutationResponse<BookingDto>(null,
+                        "Booking end time passed; booking settled. Reload.", bookingId);
                 return new BookingMutationResponse<BookingDto>(
                     await CancelBookingCoreAsync(booking, dto with { Reason = dto.Reason.Trim() }, token));
             }, ct);
         return response.GetData();
     }
 
-    private static object NormalizeCreation(CreateBookingDto dto) => new
+    private static object NormalizeCreation(CreateBookingDto dto)
     {
-        dto.CourtId,
-        dto.Date,
-        dto.StartTime,
-        dto.EndTime,
-        TotalCost = dto.TotalCost?.ToString("G29", global::System.Globalization.CultureInfo.InvariantCulture),
-        dto.QuoteFingerprint
-    };
-
-    private static readonly TimeZoneInfo VietnamTz =
-        TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+        return new
+        {
+            dto.CourtId,
+            dto.Date,
+            dto.StartTime,
+            dto.EndTime,
+            TotalCost = dto.TotalCost?.ToString("G29", CultureInfo.InvariantCulture),
+            dto.QuoteFingerprint
+        };
+    }
 
     public Task<PricePreviewResponse> GetPricePreviewAsync(PricePreviewDto dto, CancellationToken ct = default)
     {
-        idempotency.GetScope(guest: true);
+        idempotency.GetScope(true);
         return unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             ValidateTimeSlot(dto.StartTime, dto.EndTime);
@@ -134,7 +136,7 @@ public class BookingService(
             throw new UnauthorizedException("Only authenticated customers can create bookings.");
 
         var customer = await customerRepository.GetByIdAsync(currentUser.ActorId.Value, ct)
-            ?? throw new UnauthorizedException("Customer profile not found.");
+                       ?? throw new UnauthorizedException("Customer profile not found.");
 
         return await CreateBookingAsync(
             dto,
@@ -142,7 +144,8 @@ public class BookingService(
             customer.CustomerId, null, ct);
     }
 
-    private async Task<BookingMutationResponse<BookingDto>> QuickBookingCoreAsync(QuickBookingDto dto, CancellationToken ct = default)
+    private async Task<BookingMutationResponse<BookingDto>> QuickBookingCoreAsync(QuickBookingDto dto,
+        CancellationToken ct = default)
     {
         ValidateContactInfo(dto.FullName, dto.Phone, dto.Email);
 
@@ -188,7 +191,7 @@ public class BookingService(
             dto,
             customer, ActorType.Customer,
             customer.CustomerId, null, ct,
-            consumeCode: code);
+            code);
 
         return new BookingMutationResponse<BookingDto>(booking, BookingId: booking.BookingId);
     }
@@ -239,14 +242,9 @@ public class BookingService(
 
         var validInvoice = InvoiceRules.ValidInvoice(booking);
         if (validInvoice is not null)
-        {
             InvoiceRules.Cancel(validInvoice, dto.Reason, currentUser.ActorType,
                 currentUser.ActorId!.Value, dto.Refund, nowUtc);
-        }
-        else if (dto.Refund is not null)
-        {
-            throw new ConflictException("Booking has no valid invoice to refund.");
-        }
+        else if (dto.Refund is not null) throw new ConflictException("Booking has no valid invoice to refund.");
 
         var history = new BookingStatusHistory
         {
@@ -262,11 +260,11 @@ public class BookingService(
         switch (currentUser.ActorType)
         {
             case ActorType.Customer:
-                {
-                    var customer = await customerRepository.GetByIdAsync(currentUser.ActorId!.Value, ct);
-                    history.CustomerId = customer?.CustomerId;
-                    break;
-                }
+            {
+                var customer = await customerRepository.GetByIdAsync(currentUser.ActorId!.Value, ct);
+                history.CustomerId = customer?.CustomerId;
+                break;
+            }
             case ActorType.Employee:
                 history.ChangedByEmployee = currentUser.ActorId;
                 break;
@@ -290,7 +288,7 @@ public class BookingService(
             throw new UnauthorizedException("Only authenticated customers can view booking history.");
 
         var customer = await customerRepository.GetByIdAsync(currentUser.ActorId.Value, ct)
-            ?? throw new UnauthorizedException("Customer profile not found.");
+                       ?? throw new UnauthorizedException("Customer profile not found.");
 
         var paged = await bookingRepository.GetByCustomerWithDetailsAsync(customer.CustomerId, page, ct);
 
@@ -307,7 +305,7 @@ public class BookingService(
     public async Task<BookingDto> GetBookingByIdAsync(Guid bookingId, CancellationToken ct = default)
     {
         var booking = await bookingRepository.GetByIdWithDetailsAsync(bookingId, ct)
-            ?? throw new NotFoundException("Booking not found.");
+                      ?? throw new NotFoundException("Booking not found.");
 
         if (currentUser.ActorType != ActorType.Customer)
             return BookingDto.FromEntity(booking);
@@ -325,7 +323,7 @@ public class BookingService(
     public async Task<InvoiceDto> GetBookingInvoiceAsync(Guid bookingId, CancellationToken ct = default)
     {
         var booking = await bookingRepository.GetByIdWithDetailsAsync(bookingId, ct)
-            ?? throw new NotFoundException("Booking not found.");
+                      ?? throw new NotFoundException("Booking not found.");
 
         if (currentUser.ActorType == ActorType.Customer)
         {
@@ -338,9 +336,9 @@ public class BookingService(
         }
 
         var invoice = booking.Invoices
-            .OrderByDescending(i => i.IssuedAt)
-            .FirstOrDefault()
-            ?? throw new NotFoundException("Invoice not found.");
+                          .OrderByDescending(i => i.IssuedAt)
+                          .FirstOrDefault()
+                      ?? throw new NotFoundException("Invoice not found.");
 
         return InvoiceDto.FromEntity(invoice);
     }
@@ -390,10 +388,7 @@ public class BookingService(
 
         await unitOfWork.AddAsync(booking, ct);
 
-        foreach (var seg in segments)
-        {
-            await unitOfWork.AddAsync(seg.ToEntity(booking.BookingId), ct);
-        }
+        foreach (var seg in segments) await unitOfWork.AddAsync(seg.ToEntity(booking.BookingId), ct);
 
         var history = new BookingStatusHistory
         {
@@ -418,7 +413,7 @@ public class BookingService(
         await unitOfWork.SaveChangesAsync(ct);
 
         var saved = await bookingRepository.GetByIdWithDetailsAsync(booking.BookingId, ct)
-            ?? throw new NotFoundException("Booking not found.");
+                    ?? throw new NotFoundException("Booking not found.");
         return BookingDto.FromEntity(saved);
     }
 
@@ -496,7 +491,9 @@ public class BookingService(
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             errors["Email"] = ["A valid email is required."];
         if (string.IsNullOrWhiteSpace(phone))
+        {
             errors["Phone"] = ["Phone number is required."];
+        }
         else
         {
             var digits = phone.Replace(" ", "").Replace("-", "");
@@ -519,19 +516,23 @@ public class BookingService(
             if (!await bookingRepository.CodeExistsAsync(code, ct))
                 return code;
         }
+
         throw new InvalidOperationException("Failed to generate a unique booking code.");
     }
 
-    private static int GetIsoDayOfWeek(DateOnly date) =>
-        date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+    private static int GetIsoDayOfWeek(DateOnly date)
+    {
+        return date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+    }
 
-    private static string NormalizePhone(string phone) =>
-        phone.Replace(" ", "").Replace("-", "");
+    private static string NormalizePhone(string phone)
+    {
+        return phone.Replace(" ", "").Replace("-", "");
+    }
 
     private static string HashCode(string code)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(code.Trim()));
         return Convert.ToBase64String(bytes);
     }
-
 }

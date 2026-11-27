@@ -13,7 +13,8 @@ public static class EmailServiceRegistration
     {
         services.AddOptions<EmailServiceOptions>()
             .Bind(configuration.GetSection(EmailServiceOptions.SectionName))
-            .Validate(options => options.Provider is "Resend" or "Smtp", "EmailService:Provider must be Resend or Smtp.")
+            .Validate(options => options.Provider is "Resend" or "Smtp",
+                "EmailService:Provider must be Resend or Smtp.")
             .Validate(HasValidSenderAddress, "EmailService:FromAddress must be a valid email address.")
             .Validate(options => !options.FromName.Contains('\r') && !options.FromName.Contains('\n'),
                 "EmailService:FromName cannot contain line breaks.")

@@ -12,8 +12,6 @@ public class StatisticsService(
 {
     private const int MaxRangeDays = 366;
 
-    private readonly record struct Usage(int BookingCount, double BookedHours, int CompletedCount, double CompletedHours);
-
     public async Task<CourtUsageSummaryDto> GetCourtUsageAsync(
         DateOnly? fromDate, DateOnly? toDate, RevenueGroupBy groupBy, CancellationToken ct = default)
     {
@@ -70,12 +68,10 @@ public class StatisticsService(
         var to = toDate ?? today;
 
         if (from > to || to.DayNumber - from.DayNumber >= MaxRangeDays)
-        {
             throw new ValidationException(errors: new Dictionary<string, string[]>
             {
                 ["DateRange"] = [$"fromDate must be <= toDate and the range at most {MaxRangeDays} days"]
             });
-        }
 
         return (from, to);
     }
@@ -93,10 +89,7 @@ public class StatisticsService(
             bookingCount++;
             bookedMinutes += minutes;
 
-            if (row.Status != BookingStatus.Completed)
-            {
-                continue;
-            }
+            if (row.Status != BookingStatus.Completed) continue;
 
             completedCount++;
             completedMinutes += minutes;
@@ -123,16 +116,28 @@ public class StatisticsService(
             .ToList();
     }
 
-    private static double ToHours(double minutes) => Math.Round(minutes / 60, 2);
+    private static double ToHours(double minutes)
+    {
+        return Math.Round(minutes / 60, 2);
+    }
 
-    private static DateOnly PeriodStart(DateOnly date, RevenueGroupBy groupBy) =>
-        groupBy == RevenueGroupBy.Month ? new DateOnly(date.Year, date.Month, 1) : date;
+    private static DateOnly PeriodStart(DateOnly date, RevenueGroupBy groupBy)
+    {
+        return groupBy == RevenueGroupBy.Month ? new DateOnly(date.Year, date.Month, 1) : date;
+    }
 
     private static IEnumerable<DateOnly> EnumeratePeriods(DateOnly from, DateOnly to, RevenueGroupBy groupBy)
     {
         var last = PeriodStart(to, groupBy);
-        for (var current = PeriodStart(from, groupBy); current <= last;
+        for (var current = PeriodStart(from, groupBy);
+             current <= last;
              current = groupBy == RevenueGroupBy.Month ? current.AddMonths(1) : current.AddDays(1))
             yield return current;
     }
+
+    private readonly record struct Usage(
+        int BookingCount,
+        double BookedHours,
+        int CompletedCount,
+        double CompletedHours);
 }

@@ -1,7 +1,8 @@
 # Configuration and secrets
 
 Non-secret defaults stay in API `appsettings.json` and `appsettings.Development.json`.
-Secrets live in an ignored `.env` at repository root. Copy `.env.example` for a new checkout, then supply real values locally. `__` separates configuration sections.
+Secrets live in an ignored `.env` at repository root. Copy `.env.example` for a new checkout, then supply real values
+locally. `__` separates configuration sections.
 
 The API loads `.env` before creating its host, searching application parent
 directories. This supports IDE launches, `dotnet run`, and EF CLI startup.
@@ -35,7 +36,11 @@ in appsettings, or override settings using environment variables such as
 
 Account setup link (non-secret) is configured under `AccountSetup`:
 
-- `AccountSetup:FrontendBaseUrl` — absolute `http(s)` origin of the frontend used in the password setup email. Empty in `appsettings.json`; `http://localhost:3000` in `appsettings.Development.json`. Set `AccountSetup__FrontendBaseUrl` in every deployed environment.
-- `AccountSetup:SetPasswordPath` — frontend route, default `/set-password`. The link is `{FrontendBaseUrl}{SetPasswordPath}?email=…&token=…`.
+- `AccountSetup:FrontendBaseUrl` — absolute `http(s)` origin of the frontend used in the password setup email. Empty in
+  `appsettings.json`; `http://localhost:3000` in `appsettings.Development.json`. Set `AccountSetup__FrontendBaseUrl` in
+  every deployed environment.
+- `AccountSetup:SetPasswordPath` — frontend route, default `/set-password`. The link is
+  `{FrontendBaseUrl}{SetPasswordPath}?email=…&token=…`.
 
-An invalid or empty value is reported when the first setup email is sent; the create/resend request fails and rolls back.
+An invalid or empty value is reported when the first setup email is sent; the create/resend request fails and rolls
+back.

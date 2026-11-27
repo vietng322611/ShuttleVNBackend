@@ -1,68 +1,150 @@
 <!doctype html>
-<html lang="vi" dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html dir="ltr" lang="vi" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">
-    <meta name="color-scheme" content="light dark">
-    <meta name="supported-color-schemes" content="light dark">
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="telephone=no,date=no,address=no,email=no,url=no" name="format-detection">
+    <meta content="light dark" name="color-scheme">
+    <meta content="light dark" name="supported-color-schemes">
     <title>{{EmailTitle}}</title>
     <!--[if mso]>
-    <noscript><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:AllowPNG/>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
     <![endif]-->
     <style type="text/css">
-        body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-        table, td { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }
-        :root { color-scheme: light dark; supported-color-schemes: light dark; }
-        @media only screen and (max-width: 480px) {
-            .email-shell { padding: 16px 8px !important; }
-            .email-header { padding: 28px 20px 24px !important; }
-            .email-content { padding: 8px 20px 36px !important; }
-            .email-footer { padding: 24px 20px !important; }
-            .email-heading { font-size: 26px !important; line-height: 34px !important; }
-            .verification-code { font-size: 32px !important; letter-spacing: 4px !important; }
+        body {
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
         }
+
+        table, td {
+            border-collapse: collapse;
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        a[x-apple-data-detectors] {
+            color: inherit !important;
+            text-decoration: none !important;
+        }
+
+        :root {
+            color-scheme: light dark;
+            supported-color-schemes: light dark;
+        }
+
+        @media only screen and (max-width: 480px) {
+            .email-shell {
+                padding: 16px 8px !important;
+            }
+
+            .email-header {
+                padding: 28px 20px 24px !important;
+            }
+
+            .email-content {
+                padding: 8px 20px 36px !important;
+            }
+
+            .email-footer {
+                padding: 24px 20px !important;
+            }
+
+            .email-heading {
+                font-size: 26px !important;
+                line-height: 34px !important;
+            }
+
+            .verification-code {
+                font-size: 32px !important;
+                letter-spacing: 4px !important;
+            }
+        }
+
         @media (prefers-color-scheme: dark) {
-            .email-canvas { background-color: #1c211f !important; }
-            .email-surface { background-color: #252c29 !important; }
-            .email-footer { background-color: #202723 !important; border-color: #3b4640 !important; }
-            .email-primary { color: #f2f5f3 !important; }
-            .email-secondary { color: #c1cbc5 !important; }
-            .email-code-surface { background-color: #203e36 !important; border-color: #42675b !important; }
-            .verification-code { color: #bcebdd !important; }
+            .email-canvas {
+                background-color: #1c211f !important;
+            }
+
+            .email-surface {
+                background-color: #252c29 !important;
+            }
+
+            .email-footer {
+                background-color: #202723 !important;
+                border-color: #3b4640 !important;
+            }
+
+            .email-primary {
+                color: #f2f5f3 !important;
+            }
+
+            .email-secondary {
+                color: #c1cbc5 !important;
+            }
+
+            .email-code-surface {
+                background-color: #203e36 !important;
+                border-color: #42675b !important;
+            }
+
+            .verification-code {
+                color: #bcebdd !important;
+            }
         }
     </style>
 </head>
 <body class="email-canvas" style="margin:0;padding:0;width:100%;word-spacing:normal;background-color:#f1f1f1;">
-    <div style="display:none;font-size:1px;line-height:1px;color:#f1f1f1;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{PreheaderText}}</div>
-    <table class="email-canvas" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f1f1f1" style="width:100%;background-color:#f1f1f1;">
-        <tr>
-            <td class="email-shell" align="center" style="padding:32px 12px;">
-                <!--[if mso]><table role="presentation" align="center" width="600" border="0" cellspacing="0" cellpadding="0"><tr><td><![endif]-->
-                <table class="email-surface" role="presentation" align="center" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background-color:#ffffff;">
-                    <tr>
-                        <td class="email-header" align="center" style="padding:36px 40px 28px;">
-                            <p class="email-primary" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;line-height:30px;letter-spacing:0.5px;color:#26352f;">ShuttleVN</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="email-content" style="padding:8px 40px 44px;font-family:Arial,Helvetica,sans-serif;">
-                            <!-- Trusted, pre-rendered HTML fragment only. Never insert raw user input. -->
-                            {{ContentHtml}}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="email-footer" align="center" bgcolor="#fafafa" style="padding:28px 40px;background-color:#fafafa;border-top:1px solid #eaeaea;">
-                            <p class="email-secondary" style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:21px;color:#626b66;">Email tự động từ ShuttleVN, ứng dụng đặt sân cầu lông.</p>
-                            <p class="email-secondary" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:21px;color:#626b66;">Vui lòng không trả lời email này.</p>
-                        </td>
-                    </tr>
-                </table>
-                <!--[if mso]></td></tr></table><![endif]-->
-            </td>
-        </tr>
-    </table>
+<div style="display:none;font-size:1px;line-height:1px;color:#f1f1f1;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+    {{PreheaderText}}
+</div>
+<table bgcolor="#f1f1f1" border="0" cellpadding="0" cellspacing="0" class="email-canvas" role="presentation"
+       style="width:100%;background-color:#f1f1f1;" width="100%">
+    <tr>
+        <td align="center" class="email-shell" style="padding:32px 12px;">
+            <!--[if mso]>
+            <table role="presentation" align="center" width="600" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td><![endif]-->
+            <table align="center" bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" class="email-surface"
+                   role="presentation" style="width:100%;max-width:600px;background-color:#ffffff;" width="100%">
+                <tr>
+                    <td align="center" class="email-header" style="padding:36px 40px 28px;">
+                        <p class="email-primary"
+                           style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;line-height:30px;letter-spacing:0.5px;color:#26352f;">
+                            ShuttleVN</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="email-content" style="padding:8px 40px 44px;font-family:Arial,Helvetica,sans-serif;">
+                        <!-- Trusted, pre-rendered HTML fragment only. Never insert raw user input. -->
+                        {{ContentHtml}}
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" bgcolor="#fafafa" class="email-footer"
+                        style="padding:28px 40px;background-color:#fafafa;border-top:1px solid #eaeaea;">
+                        <p class="email-secondary"
+                           style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:21px;color:#626b66;">
+                            Email tự động từ ShuttleVN, ứng dụng đặt sân cầu lông.</p>
+                        <p class="email-secondary"
+                           style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:21px;color:#626b66;">
+                            Vui lòng không trả lời email này.</p>
+                    </td>
+                </tr>
+            </table>
+            <!--[if mso]></td></tr></table><![endif]-->
+        </td>
+    </tr>
+</table>
 </body>
 </html>

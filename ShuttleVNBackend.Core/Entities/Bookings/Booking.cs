@@ -6,6 +6,13 @@ namespace ShuttleVNBackend.Core.Entities.Bookings;
 
 public class Booking
 {
+    private BadmintonCourt? _court;
+
+    private Customer? _customer;
+
+    private ICollection<Invoice>? _invoices;
+
+    private ICollection<BookingPriceSegment>? _priceSegments;
     public Guid BookingId { get; set; }
     public string BookingCode { get; set; } = null!;
     public Guid CustomerId { get; set; }
@@ -18,28 +25,25 @@ public class Booking
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
-    private Customer? _customer;
     public virtual Customer Customer
     {
         get => _customer ?? throw new InvalidOperationException("Uninitialized property: " + nameof(Customer));
         set => _customer = value;
     }
 
-    private BadmintonCourt? _court;
     public virtual BadmintonCourt Court
     {
         get => _court ?? throw new InvalidOperationException("Uninitialized property: " + nameof(Court));
         set => _court = value;
     }
 
-    private ICollection<BookingPriceSegment>? _priceSegments;
     public virtual ICollection<BookingPriceSegment> PriceSegments
     {
-        get => _priceSegments ?? throw new InvalidOperationException("Uninitialized property: " + nameof(PriceSegments));
+        get => _priceSegments ??
+               throw new InvalidOperationException("Uninitialized property: " + nameof(PriceSegments));
         set => _priceSegments = value;
     }
 
-    private ICollection<Invoice>? _invoices;
     public virtual ICollection<Invoice> Invoices
     {
         get => _invoices ?? throw new InvalidOperationException("Uninitialized property: " + nameof(Invoices));

@@ -3,10 +3,10 @@
 The stack runs on AWS in `ap-southeast-1`, provisioned by Terraform and converged
 by Ansible. Two EC2 hosts share one VPC:
 
-| Host | Role | Deploys |
-| :--- | :--- | :--- |
-| `public_ec2` | Nginx edge, TLS termination, GitHub runner | Frontend (`shuttle-vn-frontend`) |
-| `private_ec2` | API container, Prometheus/Grafana/Tempo | Backend (this repository) |
+| Host          | Role                                       | Deploys                          |
+|:--------------|:-------------------------------------------|:---------------------------------|
+| `public_ec2`  | Nginx edge, TLS termination, GitHub runner | Frontend (`shuttle-vn-frontend`) |
+| `private_ec2` | API container, Prometheus/Grafana/Tempo    | Backend (this repository)        |
 
 Only Nginx is reachable from the internet, and only from published Cloudflare IPv4
 ranges. The API has no public address; the edge proxies `/api/` to it over the
@@ -53,10 +53,10 @@ terraform init && terraform apply
 
 Variables:
 
-| Variable | Meaning |
-| :--- | :--- |
-| `github_repository` | `owner/repo` allowed to assume the deploy role. |
-| `github_branch` | Branch whose pushes may assume the role (default `main`). |
+| Variable             | Meaning                                                                  |
+|:---------------------|:-------------------------------------------------------------------------|
+| `github_repository`  | `owner/repo` allowed to assume the deploy role.                          |
+| `github_branch`      | Branch whose pushes may assume the role (default `main`).                |
 | `github_environment` | Environment used by the approval-gated apply job (default `production`). |
 
 The role trusts two `sub` claims: a push to `github_branch`, and a job running in
@@ -81,12 +81,12 @@ terraform plan -out tfplan
 terraform apply tfplan
 ```
 
-| Variable | Meaning |
-| :--- | :--- |
-| `project_name` | Prefix for resource names and tags. |
-| `ami_id` | Pinned Ubuntu amd64 AMI in Singapore. |
-| `ssh_public_key` | Public key **contents**, not a path. |
-| `ssh_allowed_cidr` | Administrator IPv4 address with `/32` for SSH to the public host. |
+| Variable             | Meaning                                                                                      |
+|:---------------------|:---------------------------------------------------------------------------------------------|
+| `project_name`       | Prefix for resource names and tags.                                                          |
+| `ami_id`             | Pinned Ubuntu amd64 AMI in Singapore.                                                        |
+| `ssh_public_key`     | Public key **contents**, not a path.                                                         |
+| `ssh_allowed_cidr`   | Administrator IPv4 address with `/32` for SSH to the public host.                            |
 | `enable_nat_gateway` | `false` removes outbound internet from the private host (see [Cost control](#cost-control)). |
 
 The public host has an Elastic IP so its address survives an instance replacement.
@@ -103,11 +103,11 @@ AWS credentials for the same account.
 
 Required operator files, all outside the repositories:
 
-| Path | Content |
-| :--- | :--- |
-| `~/.ssh/shuttlevn` | SSH private key. |
-| `~/.config/shuttlevn/api.env` | API environment, same keys as `.env.example`. |
-| `~/.config/shuttlevn/tls/{fullchain,privkey}.pem` | Cloudflare origin certificate. |
+| Path                                                          | Content                                        |
+|:--------------------------------------------------------------|:-----------------------------------------------|
+| `~/.ssh/shuttlevn`                                            | SSH private key.                               |
+| `~/.config/shuttlevn/api.env`                                 | API environment, same keys as `.env.example`.  |
+| `~/.config/shuttlevn/tls/{fullchain,privkey}.pem`             | Cloudflare origin certificate.                 |
 | `infrastructure/ansible/inventory/group_vars/all/secrets.yml` | `grafana_admin_password`, `alert_webhook_url`. |
 
 Start from `inventory/group_vars/all/secrets.yml.example`; the real file is
@@ -162,35 +162,34 @@ refused by design.
 
 The origin certificate is a Cloudflare Origin CA certificate valid for
 `*.murasaki.id.vn`. Cloudflare terminates the public certificate; the edge presents
-the origin certificate to Cloudflare only. Origin verification is set to Full
-(strict).
+the origin certificate to Cloudflare only. Origin verification is set to Full (strict).
 
 ## GitHub configuration
 
 Repository variables:
 
-| Name | Value |
-| :--- | :--- |
-| `AWS_ROLE_ARN` | `terraform_role_arn` output from the bootstrap root. |
-| `TF_VAR_PROJECT_NAME` | Same as Terraform `project_name`. |
-| `TF_VAR_AMI_ID` | Same as Terraform `ami_id`. |
-| `TF_VAR_SSH_ALLOWED_CIDR` | Same as Terraform `ssh_allowed_cidr`. |
-| `TF_VAR_ENABLE_NAT_GATEWAY` | `true` / `false`. |
-| `GH_APP_ID` | GitHub App ID. Not sensitive. |
+| Name                        | Value                                                |
+|:----------------------------|:-----------------------------------------------------|
+| `AWS_ROLE_ARN`              | `terraform_role_arn` output from the bootstrap root. |
+| `TF_VAR_PROJECT_NAME`       | Same as Terraform `project_name`.                    |
+| `TF_VAR_AMI_ID`             | Same as Terraform `ami_id`.                          |
+| `TF_VAR_SSH_ALLOWED_CIDR`   | Same as Terraform `ssh_allowed_cidr`.                |
+| `TF_VAR_ENABLE_NAT_GATEWAY` | `true` / `false`.                                    |
+| `GH_APP_ID`                 | GitHub App ID. Not sensitive.                        |
 
 Repository secrets:
 
-| Name | Value |
-| :--- | :--- |
-| `TF_VAR_SSH_PUBLIC_KEY` | Public key contents. |
-| `SSH_PRIVATE_KEY` | Matching private key, for Ansible over SSH. |
-| `API_ENV` | Contents of `api.env`. |
-| `ANSIBLE_SECRETS` | Contents of `group_vars/all/secrets.yml`. |
-| `TLS_FULLCHAIN` | Origin certificate chain. |
-| `TLS_PRIVATE_KEY` | Origin certificate key. |
-| `SONAR_TOKEN` | SonarQube Cloud token. |
-| `SONAR_ORGANIZATION` | SonarQube Cloud organization key. |
-| `GH_APP_PRIVATE_KEY` | GitHub App private key, used to mint runner registration tokens. |
+| Name                    | Value                                                            |
+|:------------------------|:-----------------------------------------------------------------|
+| `TF_VAR_SSH_PUBLIC_KEY` | Public key contents.                                             |
+| `SSH_PRIVATE_KEY`       | Matching private key, for Ansible over SSH.                      |
+| `API_ENV`               | Contents of `api.env`.                                           |
+| `ANSIBLE_SECRETS`       | Contents of `group_vars/all/secrets.yml`.                        |
+| `TLS_FULLCHAIN`         | Origin certificate chain.                                        |
+| `TLS_PRIVATE_KEY`       | Origin certificate key.                                          |
+| `SONAR_TOKEN`           | SonarQube Cloud token.                                           |
+| `SONAR_ORGANIZATION`    | SonarQube Cloud organization key.                                |
+| `GH_APP_PRIVATE_KEY`    | GitHub App private key, used to mint runner registration tokens. |
 
 Environment `production` with at least one required reviewer. The infrastructure
 apply job runs inside it, so no AWS resource changes without approval.
@@ -200,14 +199,14 @@ access keys in GitHub.
 
 ## Pipelines
 
-| Workflow | Trigger | Effect |
-| :--- | :--- | :--- |
-| `ci-cd.yml` | Push to `main` touching application projects or its own workflow file | SonarQube Cloud scan, image to GHCR, deploy on the private runner, health check. |
-| `infra.yml` | Push to `main` touching `infrastructure/terraform-aws/**` | `fmt`, `validate`, `plan`. Uploads `tfplan`. Never applies. |
-| `infra.yml` | `workflow_dispatch` with `action=apply` | Downloads the plan and applies it after `production` approval, registers both self-hosted runners, then converges the hosts. |
-| `infra.yml` | `workflow_dispatch` with `action=destroy` | Tears the AWS root down after `production` approval. |
-| `config.yml` | `workflow_dispatch` / called by `infra.yml` | Runs Ansible converge, optionally `--check --diff` or limited to one host group. |
-| `runners.yml` | `workflow_dispatch` / called by `infra.yml` | Mints registration tokens with a GitHub App and installs both self-hosted runners over SSM. |
+| Workflow      | Trigger                                                               | Effect                                                                                                                       |
+|:--------------|:----------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------|
+| `ci-cd.yml`   | Push to `main` touching application projects or its own workflow file | SonarQube Cloud scan, image to GHCR, deploy on the private runner, health check.                                             |
+| `infra.yml`   | Push to `main` touching `infrastructure/terraform-aws/**`             | `fmt`, `validate`, `plan`. Uploads `tfplan`. Never applies.                                                                  |
+| `infra.yml`   | `workflow_dispatch` with `action=apply`                               | Downloads the plan and applies it after `production` approval, registers both self-hosted runners, then converges the hosts. |
+| `infra.yml`   | `workflow_dispatch` with `action=destroy`                             | Tears the AWS root down after `production` approval.                                                                         |
+| `config.yml`  | `workflow_dispatch` / called by `infra.yml`                           | Runs Ansible converge, optionally `--check --diff` or limited to one host group.                                             |
+| `runners.yml` | `workflow_dispatch` / called by `infra.yml`                           | Mints registration tokens with a GitHub App and installs both self-hosted runners over SSM.                                  |
 
 Application deploys never provision infrastructure, and infrastructure changes
 never deploy application images.

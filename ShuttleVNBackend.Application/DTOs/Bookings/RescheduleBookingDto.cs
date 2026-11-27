@@ -12,8 +12,12 @@ public sealed record RescheduleBookingDto(
     RefundPaymentDto? Refund = null)
 {
     public PricePreviewDto ToPricePreviewDto()
-        => new(CourtId, Date, StartTime, EndTime);
+    {
+        return new PricePreviewDto(CourtId, Date, StartTime, EndTime);
+    }
 
     public CreateBookingDto ToCreateBookingDto()
-        => new(CourtId, Date, StartTime, EndTime, TotalCost, QuoteFingerprint);
+    {
+        return new CreateBookingDto(CourtId, Date, StartTime, EndTime, TotalCost, QuoteFingerprint);
+    }
 }

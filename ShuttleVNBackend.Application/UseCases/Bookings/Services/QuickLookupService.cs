@@ -43,10 +43,7 @@ public class QuickLookupService(
     private async Task<IReadOnlyList<CustomerListItemDto>> FindByEmailAsync(string email, CancellationToken ct)
     {
         var customer = await customerRepository.GetListItemByEmailAsync(email, ct);
-        if (customer is null)
-        {
-            return [];
-        }
+        if (customer is null) return [];
 
         return [customer];
     }
@@ -54,16 +51,10 @@ public class QuickLookupService(
     private async Task<IReadOnlyList<CustomerListItemDto>> FindByBookingAsync(
         PagedResult<BookingRow> rows, CancellationToken ct)
     {
-        if (rows.Items.Count == 0)
-        {
-            return [];
-        }
+        if (rows.Items.Count == 0) return [];
 
         var customer = await customerRepository.GetListItemByIdAsync(rows.Items[0].CustomerId, ct);
-        if (customer is null)
-        {
-            return [];
-        }
+        if (customer is null) return [];
 
         return [customer];
     }

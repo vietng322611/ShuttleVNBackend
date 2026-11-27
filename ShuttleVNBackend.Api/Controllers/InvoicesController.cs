@@ -46,12 +46,16 @@ public sealed class InvoicesController(InvoiceService invoiceService) : Controll
         return Ok(ApiResponseFactory.Success(result));
     }
 
-    /// <summary>Records a full payment already collected outside the system. May settle the booking first if its end time has passed.</summary>
+    /// <summary>
+    ///     Records a full payment already collected outside the system. May settle the booking first if its end time has
+    ///     passed.
+    /// </summary>
     [HttpPatch("{invoiceId:guid}/pay")]
     public async Task<ActionResult<ApiResponse<InvoiceDetailDto>>> Pay(
         [FromRoute] Guid invoiceId,
         [FromBody] PayInvoiceDto dto,
-        [FromHeader(Name = "Idempotency-Key"), Required] string idempotencyKey,
+        [FromHeader(Name = "Idempotency-Key")] [Required]
+        string idempotencyKey,
         CancellationToken ct = default)
     {
         var result = await invoiceService.PayAsync(invoiceId, dto, idempotencyKey, ct);

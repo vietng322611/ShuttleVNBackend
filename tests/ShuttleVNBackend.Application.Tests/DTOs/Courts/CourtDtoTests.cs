@@ -20,7 +20,7 @@ public class CourtDtoTests
             UpdatedAt = createdAt.AddDays(1)
         };
 
-        var dto = CourtDto.FromEntity(court, isInUse: true);
+        var dto = CourtDto.FromEntity(court, true);
 
         Assert.Equal(7, dto.CourtId);
         Assert.Equal("Court 7", dto.Name);
@@ -44,7 +44,7 @@ public class CourtDtoTests
             DeletedAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
-        var dto = CourtDto.FromEntity(court, isInUse: false);
+        var dto = CourtDto.FromEntity(court, false);
 
         Assert.Equal("DELETED", dto.Name);
         Assert.False(dto.IsInUse);

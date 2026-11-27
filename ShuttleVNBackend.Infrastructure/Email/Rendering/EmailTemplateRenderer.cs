@@ -48,4 +48,3 @@ public sealed partial class EmailTemplateRenderer
                     $"Missing value for email template placeholder '{match.Groups[1].Value}'."));
     }
 }
-

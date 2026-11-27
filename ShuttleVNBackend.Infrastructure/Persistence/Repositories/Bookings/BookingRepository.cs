@@ -15,7 +15,7 @@ public class BookingRepository(ShuttleVnDbContext dbContext) : IBookingRepositor
     {
         return await dbContext.Bookings.CountAsync(b =>
             b.CourtId == courtId && b.Date >= fromDate
-            && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed), ct);
+                                 && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed), ct);
     }
 
     public Task<List<Guid>> GetSettlementCandidateIdsAsync(DateTime localCutoff, CancellationToken ct = default)
@@ -25,7 +25,7 @@ public class BookingRepository(ShuttleVnDbContext dbContext) : IBookingRepositor
         return dbContext.Bookings
             .AsNoTracking()
             .Where(b => (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed)
-                && (b.Date < date || (b.Date == date && b.EndTime <= time)))
+                        && (b.Date < date || (b.Date == date && b.EndTime <= time)))
             .Select(b => b.BookingId)
             .ToListAsync(ct);
     }
@@ -111,30 +111,6 @@ public class BookingRepository(ShuttleVnDbContext dbContext) : IBookingRepositor
                 h.ChangedAt,
                 h.Reason))
             .ToListAsync(ct);
-    }
-
-    private IQueryable<BookingRow> ProjectRows(IQueryable<Booking> source)
-    {
-        return source.Select(b => new BookingRow(
-            b.BookingId,
-            b.BookingCode,
-            b.CustomerId,
-            b.Customer.FullName,
-            b.Customer.Phone,
-            b.Customer.Email,
-            b.CourtId,
-            b.Court.Name ?? "DELETED", // to verify why this is nullable
-            b.Date,
-            b.StartTime,
-            b.EndTime,
-            b.Status,
-            b.TotalCost,
-            dbContext.Invoices
-                .Where(i => i.BookingId == b.BookingId
-                            && (i.Status == InvoiceStatus.Unpaid || i.Status == InvoiceStatus.Paid))
-                .Select(i => (InvoiceStatus?)i.Status)
-                .FirstOrDefault(),
-            b.CreatedAt));
     }
 
     public async Task<bool> HasOverlapAsync(int courtId, DateOnly date, TimeOnly start, TimeOnly end,
@@ -241,11 +217,6 @@ public class BookingRepository(ShuttleVnDbContext dbContext) : IBookingRepositor
         };
     }
 
-    private static string ToLikePattern(string term)
-    {
-        return $"%{term.Replace("\\", @"\\").Replace("%", "\\%").Replace("_", "\\_")}%";
-    }
-
     public async Task<Booking?> GetByIdAsync(Guid bookingId, CancellationToken ct = default)
     {
         return await dbContext.Bookings
@@ -289,20 +260,15 @@ public class BookingRepository(ShuttleVnDbContext dbContext) : IBookingRepositor
     public async Task<Booking?> GetFreshDetailsAsync(Guid bookingId, CancellationToken ct = default)
     {
         var entries = dbContext.ChangeTracker.Entries()
-            .Where(entry => entry.Entity is Booking booking && booking.BookingId == bookingId ||
-                entry.Entity is Invoice invoice && invoice.BookingId == bookingId ||
-                entry.Entity is BookingPriceSegment priceSegment && priceSegment.BookingId == bookingId)
+            .Where(entry => (entry.Entity is Booking booking && booking.BookingId == bookingId) ||
+                            (entry.Entity is Invoice invoice && invoice.BookingId == bookingId) ||
+                            (entry.Entity is BookingPriceSegment priceSegment && priceSegment.BookingId == bookingId))
             .ToList();
 
         if (entries.Any(entry => entry.State is not EntityState.Unchanged))
-        {
             throw new InvalidOperationException("Cannot refresh a booking with unsaved changes.");
-        }
 
-        foreach (var entry in entries)
-        {
-            entry.State = EntityState.Detached;
-        }
+        foreach (var entry in entries) entry.State = EntityState.Detached;
 
         return await GetByIdWithDetailsAsync(bookingId, ct);
     }
@@ -349,12 +315,42 @@ public class BookingRepository(ShuttleVnDbContext dbContext) : IBookingRepositor
             .FirstOrDefaultAsync(s => s.CourtId == courtId && s.DayOfWeek == dayOfWeek, ct);
     }
 
-    public async Task<List<PricingRule>> GetPricingRulesAsync(int courtId, int dayOfWeek, CancellationToken ct = default)
+    public async Task<List<PricingRule>> GetPricingRulesAsync(int courtId, int dayOfWeek,
+        CancellationToken ct = default)
     {
         return await dbContext.PricingRules
             .AsNoTracking()
             .Where(r => r.CourtId == courtId && r.DayOfWeek == dayOfWeek)
             .OrderBy(r => r.StartTime)
             .ToListAsync(ct);
+    }
+
+    private IQueryable<BookingRow> ProjectRows(IQueryable<Booking> source)
+    {
+        return source.Select(b => new BookingRow(
+            b.BookingId,
+            b.BookingCode,
+            b.CustomerId,
+            b.Customer.FullName,
+            b.Customer.Phone,
+            b.Customer.Email,
+            b.CourtId,
+            b.Court.Name ?? "DELETED", // to verify why this is nullable
+            b.Date,
+            b.StartTime,
+            b.EndTime,
+            b.Status,
+            b.TotalCost,
+            dbContext.Invoices
+                .Where(i => i.BookingId == b.BookingId
+                            && (i.Status == InvoiceStatus.Unpaid || i.Status == InvoiceStatus.Paid))
+                .Select(i => (InvoiceStatus?)i.Status)
+                .FirstOrDefault(),
+            b.CreatedAt));
+    }
+
+    private static string ToLikePattern(string term)
+    {
+        return $"%{term.Replace("\\", @"\\").Replace("%", "\\%").Replace("_", "\\_")}%";
     }
 }

@@ -36,9 +36,7 @@ public sealed class SmtpEmailService(IOptions<EmailServiceOptions> options) : IE
                 settings.Smtp.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls,
                 timeout.Token);
             if (!string.IsNullOrWhiteSpace(settings.Smtp.Username))
-            {
                 await client.AuthenticateAsync(settings.Smtp.Username, settings.Smtp.Password, timeout.Token);
-            }
 
             await client.SendAsync(email, timeout.Token);
         }

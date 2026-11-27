@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Reflection;
+using ShuttleVNBackend.Core.Attributes;
 
 namespace ShuttleVNBackend.Core.Tests.Entities;
 
@@ -10,17 +11,13 @@ public class EntitySurfaceTests
     public static TheoryData<Type> EntityTypes()
     {
         var data = new TheoryData<Type>();
-        var assembly = typeof(ShuttleVNBackend.Core.Attributes.NoAuditAttribute).Assembly;
+        var assembly = typeof(NoAuditAttribute).Assembly;
 
         foreach (var type in assembly.GetTypes())
-        {
             if (type.IsClass && !type.IsAbstract && !type.IsGenericTypeDefinition
                 && type.GetConstructor(Type.EmptyTypes) is not null
                 && type.Namespace?.StartsWith("ShuttleVNBackend.Core.Entities", StringComparison.Ordinal) == true)
-            {
                 data.Add(type);
-            }
-        }
 
         return data;
     }
@@ -34,10 +31,7 @@ public class EntitySurfaceTests
 
         foreach (var property in entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (property.GetSetMethod() is null || property.GetIndexParameters().Length > 0)
-            {
-                continue;
-            }
+            if (property.GetSetMethod() is null || property.GetIndexParameters().Length > 0) continue;
 
             var value = CreateSampleValue(property.PropertyType);
             property.SetValue(instance, value);
@@ -61,60 +55,27 @@ public class EntitySurfaceTests
     private static object? CreateSampleValue(Type type)
     {
         var underlying = Nullable.GetUnderlyingType(type);
-        if (underlying is not null)
-        {
-            return CreateSampleValue(underlying);
-        }
+        if (underlying is not null) return CreateSampleValue(underlying);
 
-        if (type == typeof(string))
-        {
-            return "sample";
-        }
+        if (type == typeof(string)) return "sample";
 
-        if (type == typeof(Guid))
-        {
-            return Guid.NewGuid();
-        }
+        if (type == typeof(Guid)) return Guid.NewGuid();
 
-        if (type == typeof(int))
-        {
-            return 1;
-        }
+        if (type == typeof(int)) return 1;
 
-        if (type == typeof(long))
-        {
-            return 1L;
-        }
+        if (type == typeof(long)) return 1L;
 
-        if (type == typeof(decimal))
-        {
-            return 100m;
-        }
+        if (type == typeof(decimal)) return 100m;
 
-        if (type == typeof(bool))
-        {
-            return true;
-        }
+        if (type == typeof(bool)) return true;
 
-        if (type == typeof(DateTime))
-        {
-            return new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        }
+        if (type == typeof(DateTime)) return new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        if (type == typeof(DateOnly))
-        {
-            return new DateOnly(2026, 1, 1);
-        }
+        if (type == typeof(DateOnly)) return new DateOnly(2026, 1, 1);
 
-        if (type == typeof(TimeOnly))
-        {
-            return new TimeOnly(6, 0);
-        }
+        if (type == typeof(TimeOnly)) return new TimeOnly(6, 0);
 
-        if (type.IsEnum)
-        {
-            return Enum.GetValues(type).GetValue(0);
-        }
+        if (type.IsEnum) return Enum.GetValues(type).GetValue(0);
 
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ICollection<>))
         {

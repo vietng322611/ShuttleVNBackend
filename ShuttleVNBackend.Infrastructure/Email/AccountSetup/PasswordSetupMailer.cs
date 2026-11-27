@@ -32,8 +32,7 @@ public sealed class PasswordSetupMailer(
             });
 
         await emailService.SendAsync(
-            new EmailMessage(email, "ShuttleVN: Thiết lập mật khẩu cho tài khoản của bạn", body, isHtml: true),
+            new EmailMessage(email, "ShuttleVN: Thiết lập mật khẩu cho tài khoản của bạn", body, true),
             ct);
     }
 }
-

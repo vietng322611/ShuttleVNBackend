@@ -31,7 +31,10 @@ public class BookingController(
 
     /// <summary>Creates a booking with confirmed TotalCost and QuoteFingerprint from price-preview.</summary>
     /// <response code="400">Price confirmation is missing or invalid.</response>
-    /// <response code="409">A changed price includes the fresh quote in data for explicit confirmation. Other conflicts return null data.</response>
+    /// <response code="409">
+    ///     A changed price includes the fresh quote in data for explicit confirmation. Other conflicts return
+    ///     null data.
+    /// </response>
     [HttpPost]
     [Authorize(Policy = "CustomerOnly")]
     [ProducesResponseType(typeof(ApiResponse<BookingDto>), StatusCodes.Status200OK)]
@@ -39,7 +42,8 @@ public class BookingController(
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<BookingDto>>> CreateBooking(
         [FromBody] CreateBookingDto dto,
-        [FromHeader(Name = "Idempotency-Key"), Required] string idempotencyKey,
+        [FromHeader(Name = "Idempotency-Key")] [Required]
+        string idempotencyKey,
         CancellationToken ct = default)
     {
         var result = await bookingService.CreateBookingAsync(dto, idempotencyKey, ct);
@@ -48,7 +52,10 @@ public class BookingController(
 
     /// <summary>Creates a guest booking with confirmed TotalCost and QuoteFingerprint from price-preview.</summary>
     /// <response code="400">Price confirmation is missing or invalid.</response>
-    /// <response code="409">A changed price includes the fresh quote in data for explicit confirmation. Other conflicts return null data.</response>
+    /// <response code="409">
+    ///     A changed price includes the fresh quote in data for explicit confirmation. Other conflicts return
+    ///     null data.
+    /// </response>
     [HttpPost("quick")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<BookingDto>), StatusCodes.Status200OK)]
@@ -56,7 +63,8 @@ public class BookingController(
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<BookingDto>>> QuickBooking(
         [FromBody] QuickBookingDto dto,
-        [FromHeader(Name = "Idempotency-Key"), Required] string idempotencyKey,
+        [FromHeader(Name = "Idempotency-Key")] [Required]
+        string idempotencyKey,
         CancellationToken ct = default)
     {
         var result = await bookingService.QuickBookingAsync(dto, idempotencyKey, ct);
@@ -84,7 +92,8 @@ public class BookingController(
     public async Task<ActionResult<ApiResponse<BookingDto>>> Reschedule(
         [FromRoute] Guid bookingId,
         [FromBody] RescheduleBookingDto dto,
-        [FromHeader(Name = "Idempotency-Key"), Required] string idempotencyKey,
+        [FromHeader(Name = "Idempotency-Key")] [Required]
+        string idempotencyKey,
         CancellationToken ct = default)
     {
         var result = await bookingRescheduleService.RescheduleAsync(bookingId, dto, idempotencyKey, ct);
@@ -97,7 +106,8 @@ public class BookingController(
     public async Task<ActionResult<ApiResponse<BookingDto>>> CancelBooking(
         [FromRoute] Guid bookingId,
         [FromBody] CancelBookingDto dto,
-        [FromHeader(Name = "Idempotency-Key"), Required] string idempotencyKey,
+        [FromHeader(Name = "Idempotency-Key")] [Required]
+        string idempotencyKey,
         CancellationToken ct = default)
     {
         var result = await bookingService.CancelBookingAsync(bookingId, dto, idempotencyKey, ct);
@@ -133,10 +143,7 @@ public class BookingController(
         CancellationToken ct = default)
     {
         var result = await bookingService.GetBookingByCodeAsync(code, ct);
-        if (result == null)
-        {
-            return NotFound(ApiResponseFactory.Failure<BookingDto>("Không tìm thấy đơn đặt sân"));
-        }
+        if (result == null) return NotFound(ApiResponseFactory.Failure<BookingDto>("Không tìm thấy đơn đặt sân"));
 
         return Ok(ApiResponseFactory.Success(result));
     }

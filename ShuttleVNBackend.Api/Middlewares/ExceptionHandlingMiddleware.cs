@@ -1,5 +1,5 @@
-using Npgsql;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using ShuttleVNBackend.Api.Common;
 using ShuttleVNBackend.Application.Exceptions;
 using ValidationException = ShuttleVNBackend.Application.Exceptions.ValidationException;
@@ -40,9 +40,10 @@ public class ExceptionHandlingMiddleware(
                 context.RequestAborted);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.ExclusionViolation or PostgresErrorCodes.UniqueViolation
-        })
+                                           {
+                                               SqlState: PostgresErrorCodes.ExclusionViolation
+                                               or PostgresErrorCodes.UniqueViolation
+                                           })
         {
             if (context.Response.HasStarted)
             {

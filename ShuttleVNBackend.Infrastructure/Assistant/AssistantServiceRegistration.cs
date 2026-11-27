@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShuttleVNBackend.Application.Interfaces.Assistant;
@@ -31,7 +33,8 @@ public static class AssistantServiceRegistration
                 "Assistant:MaxTokens must be between 1 and 8000.")
             .Validate(options => options.AvailabilityHorizonDays is >= 1 and <= 365,
                 "Assistant:AvailabilityHorizonDays must be between 1 and 365.")
-            .Validate(IsJsonObject, "Assistant:ExtraBody must be a JSON object such as {\"reasoning_effort\":\"none\"}.")
+            .Validate(IsJsonObject,
+                "Assistant:ExtraBody must be a JSON object such as {\"reasoning_effort\":\"none\"}.")
             .ValidateOnStart();
 
         services.AddHttpClient<IChatCompletionClient, OpenAiCompatibleChatClient>();
@@ -46,17 +49,14 @@ public static class AssistantServiceRegistration
 
     private static bool IsJsonObject(AssistantOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.ExtraBody))
-        {
-            return true;
-        }
+        if (string.IsNullOrWhiteSpace(options.ExtraBody)) return true;
 
         try
         {
-            return System.Text.Json.Nodes.JsonNode.Parse(options.ExtraBody)
-                is System.Text.Json.Nodes.JsonObject;
+            return JsonNode.Parse(options.ExtraBody)
+                is JsonObject;
         }
-        catch (System.Text.Json.JsonException)
+        catch (JsonException)
         {
             return false;
         }

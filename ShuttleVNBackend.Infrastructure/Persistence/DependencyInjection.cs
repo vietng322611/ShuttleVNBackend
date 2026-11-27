@@ -1,10 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ShuttleVNBackend.Infrastructure.Assistant;
-using ShuttleVNBackend.Infrastructure.Email.AccountSetup;
-using ShuttleVNBackend.Infrastructure.Email.Notifications;
-using ShuttleVNBackend.Infrastructure.Email.Providers;
 using ShuttleVNBackend.Application.Interfaces.Repositories;
 using ShuttleVNBackend.Application.Interfaces.Repositories.Bookings;
 using ShuttleVNBackend.Application.Interfaces.Repositories.Courts;
@@ -17,6 +14,10 @@ using ShuttleVNBackend.Application.UseCases.Courts.Services;
 using ShuttleVNBackend.Application.UseCases.Statistics.Services;
 using ShuttleVNBackend.Application.UseCases.System;
 using ShuttleVNBackend.Application.UseCases.Users.Services;
+using ShuttleVNBackend.Infrastructure.Assistant;
+using ShuttleVNBackend.Infrastructure.Email.AccountSetup;
+using ShuttleVNBackend.Infrastructure.Email.Notifications;
+using ShuttleVNBackend.Infrastructure.Email.Providers;
 using ShuttleVNBackend.Infrastructure.Persistence.Interceptors;
 using ShuttleVNBackend.Infrastructure.Persistence.Repositories.Bookings;
 using ShuttleVNBackend.Infrastructure.Persistence.Repositories.Courts;
@@ -36,7 +37,7 @@ public static class DependencyInjection
         {
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
             options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
-            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddSingleton(TimeProvider.System);

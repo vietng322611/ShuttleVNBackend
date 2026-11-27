@@ -10,7 +10,7 @@ using ShuttleVNBackend.Application.UseCases.Assistant.Tools;
 namespace ShuttleVNBackend.Application.Tests.UseCases.Assistant;
 
 /// <summary>
-/// Asserts what a customer sees in the chat window, given a model that behaves badly.
+///     Asserts what a customer sees in the chat window, given a model that behaves badly.
 /// </summary>
 public class AssistantChatServiceTests
 {
@@ -22,6 +22,26 @@ public class AssistantChatServiceTests
 
     private static readonly AssistantChatRequest AvailabilityQuestion =
         new([new AssistantChatMessage("user", "Tối nay còn sân không?")]);
+
+    // What CourtService would return for a court with one open evening slot.
+    private static readonly object CourtPayload = new
+    {
+        date = "2026-11-26",
+        courts = new[]
+        {
+            new
+            {
+                courtId = 2,
+                name = "Sân 2",
+                slots = new[]
+                {
+                    new { startTime = "18:00", endTime = "20:00", displayStatus = "AVAILABLE", pricePerHour = 120000m }
+                }
+            }
+        }
+    };
+
+    private static readonly object EmptyPayload = new { date = "2026-11-26", courts = Array.Empty<string>() };
 
     private static AssistantChatService Build(IChatCompletionClient client, params IAssistantTool[] tools)
     {
@@ -293,27 +313,18 @@ public class AssistantChatServiceTests
         var reply = string.Empty;
 
         await foreach (var streamEvent in events)
-        {
             if (streamEvent is AssistantStreamEvent.Done done)
-            {
                 reply = done.Reply;
-            }
-        }
 
         return reply;
     }
 
     /// <summary>
-    /// Replays one canned completion per round.
+    ///     Replays one canned completion per round.
     /// </summary>
     private sealed class FakeChatClient(params ChatStreamEvent[] rounds) : IChatCompletionClient
     {
         private int _round;
-
-        public static ChatStreamEvent Text(string text) => new ChatStreamEvent.TextDelta(text);
-
-        public static ChatStreamEvent Call(string name, string arguments) =>
-            new ChatStreamEvent.ToolCallsReady([new ChatToolCall($"call_{name}", name, arguments)]);
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
             ChatCompletionRequest request,
@@ -324,27 +335,17 @@ public class AssistantChatServiceTests
             var index = Math.Min(_round++, rounds.Length - 1);
             yield return rounds[index];
         }
-    }
 
-    // What CourtService would return for a court with one open evening slot.
-    private static readonly object CourtPayload = new
-    {
-        date = "2026-11-26",
-        courts = new[]
+        public static ChatStreamEvent Text(string text)
         {
-            new
-            {
-                courtId = 2,
-                name = "Sân 2",
-                slots = new[]
-                {
-                    new { startTime = "18:00", endTime = "20:00", displayStatus = "AVAILABLE", pricePerHour = 120000m }
-                }
-            }
+            return new ChatStreamEvent.TextDelta(text);
         }
-    };
 
-    private static readonly object EmptyPayload = new { date = "2026-11-26", courts = Array.Empty<string>() };
+        public static ChatStreamEvent Call(string name, string arguments)
+        {
+            return new ChatStreamEvent.ToolCallsReady([new ChatToolCall($"call_{name}", name, arguments)]);
+        }
+    }
 
     private sealed class CourtLookupTool(object payload) : IAssistantTool
     {
@@ -354,7 +355,9 @@ public class AssistantChatServiceTests
 
         public object Parameters => new { type = "object", properties = new { } };
 
-        public Task<ToolOutcome> ExecuteAsync(JsonElement arguments, CancellationToken ct) =>
-            Task.FromResult(new ToolOutcome(false, payload));
+        public Task<ToolOutcome> ExecuteAsync(JsonElement arguments, CancellationToken ct)
+        {
+            return Task.FromResult(new ToolOutcome(false, payload));
+        }
     }
 }

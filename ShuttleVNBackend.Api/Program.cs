@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using dotenv.net;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 using ShuttleVNBackend.Api;
 using ShuttleVNBackend.Api.Extensions;
@@ -89,20 +88,13 @@ builder.Services.Configure<AdminAccountOptions>(
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger(options =>
-    {
-        options.RouteTemplate = "openapi/{documentName}.json";
-    });
-}
+    app.UseSwagger(options => { options.RouteTemplate = "openapi/{documentName}.json"; });
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
-    KnownIPNetworks = { },
-    KnownProxies = { },
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
 });
 
 app.UseCors("Frontend");
@@ -116,10 +108,7 @@ app.MapControllers();
 
 app.MapHealthChecks("/health");
 
-if (app.Configuration.GetValue<bool>("Otel:Enabled"))
-{
-    app.MapPrometheusScrapingEndpoint();
-}
+if (app.Configuration.GetValue<bool>("Otel:Enabled")) app.MapPrometheusScrapingEndpoint();
 
 await app.SeedAdminAccountAsync();
 

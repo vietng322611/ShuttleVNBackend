@@ -23,16 +23,16 @@ yêu cầu chức năng (FR/NFR) thuộc SRS; cấu trúc dữ liệu chi tiết
 
 ShuttleVN là hệ thống quản lý và đặt sân cầu lông cho **một cơ sở duy nhất**, kèm trợ lý AI tư vấn.
 
-| Vai trò | Phạm vi chính |
-| --- | --- |
-| Khách vãng lai | Xem sân, lưới sân, đơn giá; đặt nhanh có xác minh email; dùng trợ lý AI; thiết lập mật khẩu. |
-| Khách thành viên | Đăng ký, đăng nhập, đặt/hủy/đổi lịch, lịch sử, hồ sơ cá nhân. |
-| Nhân viên | Xác nhận, từ chối, tạo đơn thay khách, hủy sự cố, hoàn tiền, thu tiền, hóa đơn, khách hàng, trạng thái sân. |
-| Quản trị viên (QTV) | Toàn bộ quyền nhân viên, thêm quản lý sân/lịch/giá, nhân viên, tài khoản, thống kê, nhật ký. |
-| Hệ thống | Tự chốt đơn từ giờ kết thúc (BR-17), gửi email bất đồng bộ, ghi nhật ký tự động. |
+| Vai trò             | Phạm vi chính                                                                                               |
+|---------------------|-------------------------------------------------------------------------------------------------------------|
+| Khách vãng lai      | Xem sân, lưới sân, đơn giá; đặt nhanh có xác minh email; dùng trợ lý AI; thiết lập mật khẩu.                |
+| Khách thành viên    | Đăng ký, đăng nhập, đặt/hủy/đổi lịch, lịch sử, hồ sơ cá nhân.                                               |
+| Nhân viên           | Xác nhận, từ chối, tạo đơn thay khách, hủy sự cố, hoàn tiền, thu tiền, hóa đơn, khách hàng, trạng thái sân. |
+| Quản trị viên (QTV) | Toàn bộ quyền nhân viên, thêm quản lý sân/lịch/giá, nhân viên, tài khoản, thống kê, nhật ký.                |
+| Hệ thống            | Tự chốt đơn từ giờ kết thúc (BR-17), gửi email bất đồng bộ, ghi nhật ký tự động.                            |
 
-**Trong phạm vi:** REST API, PostgreSQL, quy trình đặt sân và hóa đơn, báo cáo, trợ lý LLM tư vấn.
-**Ngoài phạm vi:** đa chi nhánh, tích hợp cổng thanh toán, chương trình khách hàng thân thiết,
+**Trong phạm vi:** REST API, PostgreSQL, quy trình đặt sân và hóa đơn, báo cáo, trợ lý LLM tư vấn. **Ngoài phạm vi:** đa
+chi nhánh, tích hợp cổng thanh toán, chương trình khách hàng thân thiết,
 huấn luyện mô hình, tích hợp SMS/Zalo. Không có bảng hội thoại AI: trợ lý chỉ đọc dữ liệu công khai.
 
 ## 2. Kiến trúc phân lớp
@@ -65,12 +65,12 @@ Cấm đặt kiểu HTTP, `DbContext`, hay SDK nhà cung cấp trong `Core`.
 
 ### 2.2 Trách nhiệm từng project
 
-| Project | Trách nhiệm | Không được chứa |
-| --- | --- | --- |
-| `ShuttleVNBackend.Core` | Entity, enum, bất biến miền, `[NoAudit]`, `UserAccount.GetRole()`. | HTTP, EF Core, DTO, cấu hình. |
-| `ShuttleVNBackend.Application` | Use case/dịch vụ, DTO, FluentValidation, hợp đồng repository, exception miền, tool trợ lý AI. | `DbContext`, controller, kiểu ASP.NET Core. |
-| `ShuttleVNBackend.Infrastructure` | `ShuttleVnDbContext`, mapping, migration, repository, xác thực, email, client LLM, interceptor audit, worker nền. | Controller, middleware HTTP. |
-| `ShuttleVNBackend.Api` | Controller, middleware, xác thực cookie, phân quyền, rate limit, DI, OpenAPI, hosted service chốt đơn. | Truy vấn EF Core, quy trình nghiệp vụ. |
+| Project                           | Trách nhiệm                                                                                                       | Không được chứa                             |
+|-----------------------------------|-------------------------------------------------------------------------------------------------------------------|---------------------------------------------|
+| `ShuttleVNBackend.Core`           | Entity, enum, bất biến miền, `[NoAudit]`, `UserAccount.GetRole()`.                                                | HTTP, EF Core, DTO, cấu hình.               |
+| `ShuttleVNBackend.Application`    | Use case/dịch vụ, DTO, FluentValidation, hợp đồng repository, exception miền, tool trợ lý AI.                     | `DbContext`, controller, kiểu ASP.NET Core. |
+| `ShuttleVNBackend.Infrastructure` | `ShuttleVnDbContext`, mapping, migration, repository, xác thực, email, client LLM, interceptor audit, worker nền. | Controller, middleware HTTP.                |
+| `ShuttleVNBackend.Api`            | Controller, middleware, xác thực cookie, phân quyền, rate limit, DI, OpenAPI, hosted service chốt đơn.            | Truy vấn EF Core, quy trình nghiệp vụ.      |
 
 ### 2.3 Cấu trúc thư mục
 
@@ -197,42 +197,42 @@ SeedAdminAccountAsync
 
 Tất cả route nằm dưới `api/`. Controller mỏng: bind DTO, gọi use case, bọc `ApiResponse<T>`.
 
-| Nhóm | Route | Quyền |
-| --- | --- | --- |
-| Xác thực | `POST api/auth/register`, `login`, `logout`, `issue-code`, `reset-password`, `set-password`, `resend-setup-link`, `GET api/auth/me` | Ẩn danh (trừ `logout`, `me`) |
-| Sân | `GET api/courts`, `api/courts/{id}`, `api/courts/grid`, `POST/PATCH api/courts*` | Đọc công khai; ghi `StaffOnly` |
-| Lịch, giá | `api/courts/{id}/schedules`, `api/courts/{id}/pricing-rules` | Đọc `StaffOnly`; ghi `AdminOnly` (giá) |
-| Đặt sân | `GET api/bookings/price-preview`, `POST api/bookings/quick`, `GET api/bookings/code/{code}` | Ẩn danh |
-| Đặt sân | `POST api/bookings`, `GET api/bookings/me`, `GET/PATCH api/bookings/{id}*` | `CustomerOnly` hoặc `Authorize` |
-| Yêu cầu đặt sân | `api/booking-requests` (list, detail, confirm, reject, complete) | `StaffOnly` |
-| Hóa đơn | `api/invoices` (list, detail, history, pay) | `Employee,Admin` |
-| Tài khoản, khách, nhân viên | `api/accounts`, `api/employees` | `StaffOnly` / `AdminOnly` |
-| Trợ lý AI | `POST api/assistant/chat`, `api/assistant/chat/stream` | Ẩn danh + rate limit |
-| Quản trị | `api/admin/bookings`, `api/admin/dashboard`, `api/admin/statistics/*`, `api/audits`, `api/quick-lookup` | `AdminOnly` / `StaffOnly` |
-| Hồ sơ | `PUT api/profile`, `api/profile/change-password` | `Authorize` |
+| Nhóm                        | Route                                                                                                                               | Quyền                                  |
+|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| Xác thực                    | `POST api/auth/register`, `login`, `logout`, `issue-code`, `reset-password`, `set-password`, `resend-setup-link`, `GET api/auth/me` | Ẩn danh (trừ `logout`, `me`)           |
+| Sân                         | `GET api/courts`, `api/courts/{id}`, `api/courts/grid`, `POST/PATCH api/courts*`                                                    | Đọc công khai; ghi `StaffOnly`         |
+| Lịch, giá                   | `api/courts/{id}/schedules`, `api/courts/{id}/pricing-rules`                                                                        | Đọc `StaffOnly`; ghi `AdminOnly` (giá) |
+| Đặt sân                     | `GET api/bookings/price-preview`, `POST api/bookings/quick`, `GET api/bookings/code/{code}`                                         | Ẩn danh                                |
+| Đặt sân                     | `POST api/bookings`, `GET api/bookings/me`, `GET/PATCH api/bookings/{id}*`                                                          | `CustomerOnly` hoặc `Authorize`        |
+| Yêu cầu đặt sân             | `api/booking-requests` (list, detail, confirm, reject, complete)                                                                    | `StaffOnly`                            |
+| Hóa đơn                     | `api/invoices` (list, detail, history, pay)                                                                                         | `Employee,Admin`                       |
+| Tài khoản, khách, nhân viên | `api/accounts`, `api/employees`                                                                                                     | `StaffOnly` / `AdminOnly`              |
+| Trợ lý AI                   | `POST api/assistant/chat`, `api/assistant/chat/stream`                                                                              | Ẩn danh + rate limit                   |
+| Quản trị                    | `api/admin/bookings`, `api/admin/dashboard`, `api/admin/statistics/*`, `api/audits`, `api/quick-lookup`                             | `AdminOnly` / `StaffOnly`              |
+| Hồ sơ                       | `PUT api/profile`, `api/profile/change-password`                                                                                    | `Authorize`                            |
 
 ### 3.5 Định dạng phản hồi và lỗi
 
 Mọi phản hồi dùng `ApiResponse<T>(bool Success, T? Data, string? Message, IDictionary<string,string[]>? Errors)`.
 
-| Nguồn lỗi | HTTP | Ghi chú |
-| --- | --- | --- |
-| `AppException` | `ex.StatusCode` | `NotFoundException` 404, `UnauthorizedException` 401, `ForbiddenException` 403, `ConflictException` 409. |
-| `TooManyRequestsException` | 429 | Kèm `Retry-After`. |
-| `ValidationException` (FluentValidation) | 422 | Đưa lỗi từng trường vào `Errors`. |
-| `PriceChangedException` | 409 | Trả báo giá mới trong `Data` để client xác nhận lại (UC-07 A1). |
-| PostgreSQL exclusion/unique violation | 409 | "Dữ liệu vừa bị thay đổi, tải lại và thử lại." Không lộ chi tiết SQL. |
-| Client hủy yêu cầu | — | Ghi log mức information, không trả lỗi. |
-| Lỗi khác | 500 | Chỉ trả thông điệp chung; chi tiết vào Serilog. |
+| Nguồn lỗi                                | HTTP            | Ghi chú                                                                                                  |
+|------------------------------------------|-----------------|----------------------------------------------------------------------------------------------------------|
+| `AppException`                           | `ex.StatusCode` | `NotFoundException` 404, `UnauthorizedException` 401, `ForbiddenException` 403, `ConflictException` 409. |
+| `TooManyRequestsException`               | 429             | Kèm `Retry-After`.                                                                                       |
+| `ValidationException` (FluentValidation) | 422             | Đưa lỗi từng trường vào `Errors`.                                                                        |
+| `PriceChangedException`                  | 409             | Trả báo giá mới trong `Data` để client xác nhận lại (UC-07 A1).                                          |
+| PostgreSQL exclusion/unique violation    | 409             | "Dữ liệu vừa bị thay đổi, tải lại và thử lại." Không lộ chi tiết SQL.                                    |
+| Client hủy yêu cầu                       | —               | Ghi log mức information, không trả lỗi.                                                                  |
+| Lỗi khác                                 | 500             | Chỉ trả thông điệp chung; chi tiết vào Serilog.                                                          |
 
 Không trả exception message, stack trace, `PasswordHash`, mã xác minh hay token trong phản hồi và log.
 
 ### 3.6 Tác vụ nền
 
-| Thành phần | Chu kỳ | Việc làm |
-| --- | --- | --- |
+| Thành phần                    | Chu kỳ                                                                                                                        | Việc làm                                                                                                                                                   |
+|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `PendingBookingExpiryService` | Chạy ngay khi khởi động; sau đó chờ mốc **:01** hoặc **:31** gần nhất còn ở tương lai (giờ Việt Nam); lỗi thử lại sau 1 phút. | Chốt mọi đơn `PENDING`/`CONFIRMED` đã qua giờ kết thúc theo BR-17 (UC-41). Có hóa đơn `PAID` → `COMPLETED`, ngược lại `CANCELLED` và hủy hóa đơn `UNPAID`. |
-| `BookingNotificationWorker` | `PeriodicTimer` 15 giây; mỗi chu kỳ nhận tối đa 20 thông báo. | Nhận `Notification` bằng `FOR UPDATE SKIP LOCKED`, gửi email qua provider, ghi `SENT`/`FAILED`, giữ `LockedUntil` 2 phút để chạy bù. |
+| `BookingNotificationWorker`   | `PeriodicTimer` 15 giây; mỗi chu kỳ nhận tối đa 20 thông báo.                                                                 | Nhận `Notification` bằng `FOR UPDATE SKIP LOCKED`, gửi email qua provider, ghi `SENT`/`FAILED`, giữ `LockedUntil` 2 phút để chạy bù.                       |
 
 Worker chạy trong cùng tiến trình API, dùng `IServiceScopeFactory` để tạo scope riêng; lỗi gửi email
 không hoàn tác giao dịch nghiệp vụ đã commit (BR-28).
@@ -284,8 +284,8 @@ Nhánh A1 (khách trả đủ ngay) lập hóa đơn `PAID` kèm `PaidAmount`, `
 ### 4.3 Đổi lịch và hủy (UC-09, UC-10, UC-19, UC-20)
 
 - Đổi lịch: khóa sân cũ và sân mới theo thứ tự `courtId` tăng dần, rồi khóa đơn; kiểm tra mốc 1 giờ
-  cho cả giờ cũ và giờ mới; thay snapshot `BookingPriceSegment`; đồng bộ hóa đơn theo BR-22
-  (đơn `CONFIRMED` chưa thu: hóa đơn `UNPAID` cũ → `CANCELLED`, tạo bản thay thế `UNPAID` có
+  cho cả giờ cũ và giờ mới; thay snapshot `BookingPriceSegment`; đồng bộ hóa đơn theo BR-22 (đơn `CONFIRMED` chưa thu:
+  hóa đơn `UNPAID` cũ → `CANCELLED`, tạo bản thay thế `UNPAID` có
   `ReplacesInvoiceId`).
 - Đổi lịch/cancel khi hóa đơn `PAID`: hoàn đủ ngoài hệ thống → UC-20 ghi `REFUNDED` với
   `RefundAmount = TotalCost`, giữ nguyên chứng cứ thu cũ; đổi lịch khác tổng tiền tạo bản thay thế `UNPAID`.
@@ -362,11 +362,11 @@ chỉ có sau khi lưu). `SaveSystemChangesAsync` đặt cờ `IsSystemSave` đ�
 
 ### 6.2 Phân quyền
 
-| Policy | Điều kiện |
-| --- | --- |
-| `CustomerOnly` | Role `Customer`. |
-| `StaffOnly` | Role `Employee` hoặc `Admin`. |
-| `AdminOnly` | Claim `IsAdmin = true`. |
+| Policy         | Điều kiện                     |
+|----------------|-------------------------------|
+| `CustomerOnly` | Role `Customer`.              |
+| `StaffOnly`    | Role `Employee` hoặc `Admin`. |
+| `AdminOnly`    | Claim `IsAdmin = true`.       |
 
 Quyền kiểm tra phía máy chủ; ẩn nút trên UI không phải là phân quyền. Không tin `accountId`,
 `customerId`, `employeeId` do client gửi — luôn suy ra từ claims.
@@ -427,10 +427,10 @@ Quyền kiểm tra phía máy chủ; ẩn nút trên UI không phải là phân 
 
 ### 9.1 Kiểm thử
 
-| Project | Nội dung |
-| --- | --- |
-| `tests/ShuttleVNBackend.Application.Tests` | Tính giá nhiều mốc, validate DTO, quy tắc use case. |
-| `tests/ShuttleVNBackend.Core.Tests` | Bất biến entity, `GetRole()`, thuộc tính `[NoAudit]`. |
+| Project                                    | Nội dung                                              |
+|--------------------------------------------|-------------------------------------------------------|
+| `tests/ShuttleVNBackend.Application.Tests` | Tính giá nhiều mốc, validate DTO, quy tắc use case.   |
+| `tests/ShuttleVNBackend.Core.Tests`        | Bất biến entity, `GetRole()`, thuộc tính `[NoAudit]`. |
 
 Lệnh kiểm tra trước khi hoàn tất thay đổi:
 
@@ -452,16 +452,16 @@ EF InMemory không chứng minh được `tsrange`, `EXCLUDE` hay `FOR UPDATE`.
 
 ### 9.3 Sự cố thường gặp
 
-| Hiện tượng | Nguyên nhân thường gặp |
-| --- | --- |
-| 409 khi đặt sân | Slot vừa bị người khác giữ; exclusion constraint chặn. Tải lại lưới sân. |
-| 409 "giá đã đổi" | Bảng giá thay đổi giữa bước xem trước và xác nhận; client phải xác nhận lại. |
-| 429 ở `api/assistant/chat` | Vượt 20 yêu cầu/phút/IP. |
-| Cookie mất sau khi deploy | Data Protection key ring không bền hoặc đổi `Secure`/`SameSite`. |
-| Email không tới | `Notification` ở `FAILED`/`SENDING` kẹt; kiểm tra `LastError`, `NextAttemptAt`, `LockedUntil`. |
+| Hiện tượng                 | Nguyên nhân thường gặp                                                                         |
+|----------------------------|------------------------------------------------------------------------------------------------|
+| 409 khi đặt sân            | Slot vừa bị người khác giữ; exclusion constraint chặn. Tải lại lưới sân.                       |
+| 409 "giá đã đổi"           | Bảng giá thay đổi giữa bước xem trước và xác nhận; client phải xác nhận lại.                   |
+| 429 ở `api/assistant/chat` | Vượt 20 yêu cầu/phút/IP.                                                                       |
+| Cookie mất sau khi deploy  | Data Protection key ring không bền hoặc đổi `Secure`/`SameSite`.                               |
+| Email không tới            | `Notification` ở `FAILED`/`SENDING` kẹt; kiểm tra `LastError`, `NextAttemptAt`, `LockedUntil`. |
 
 ## 10. Thay đổi tài liệu
 
-| Phiên bản | Thay đổi |
-| --- | --- |
+| Phiên bản        | Thay đổi                                                                                                                                       |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1.0 · 31/10/2026 | Bản đầu tiên: kiến trúc phân lớp, thành phần runtime, luồng nghiệp vụ chính, ranh giới giao dịch, bảo mật, tích hợp ngoài, cấu hình, kiểm thử. |

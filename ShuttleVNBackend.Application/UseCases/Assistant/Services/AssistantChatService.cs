@@ -17,30 +17,27 @@ public sealed class AssistantChatService(
     IOptions<AssistantOptions> options,
     TimeProvider clock)
 {
-    private static readonly JsonSerializerOptions PayloadJson = JsonSerializerOptions.Web;
-    private static readonly string[] VietnameseDayNames =
-        ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
-
     // MaxMessages caps what a caller may send; this caps what is forwarded to the model.
     // ponytail: fixed window; make it configurable when the assistant grows a persona.
     private const int ConversationWindow = 6;
+    private static readonly JsonSerializerOptions PayloadJson = JsonSerializerOptions.Web;
+
+    private static readonly string[] VietnameseDayNames =
+        ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+    private readonly AssistantOptions _settings = options.Value;
 
     private readonly Dictionary<string, IAssistantTool> _tools = tools.ToDictionary(t => t.Name);
-    private readonly AssistantOptions _settings = options.Value;
 
     public async Task<AssistantChatResponse> ChatAsync(
         AssistantChatRequest request,
         CancellationToken ct = default)
     {
-        string reply = AssistantReplyValidator.FallbackReply;
+        var reply = AssistantReplyValidator.FallbackReply;
 
         await foreach (var streamEvent in StreamAsync(request, ct))
-        {
             if (streamEvent is AssistantStreamEvent.Done done)
-            {
                 reply = done.Reply;
-            }
-        }
 
         return new AssistantChatResponse(reply);
     }
@@ -56,7 +53,7 @@ public sealed class AssistantChatService(
             .Select(t => new ChatToolSpec(t.Name, t.Description, t.Parameters))
             .ToList();
 
-        string reply = AssistantReplyValidator.FallbackReply;
+        var reply = AssistantReplyValidator.FallbackReply;
         var allowedNumbers = AssistantReplyValidator.CollectEvidence(request.Messages[^1].Content);
         var lookupHappened = false;
 
@@ -74,7 +71,6 @@ public sealed class AssistantChatService(
             List<ChatToolCall>? toolCalls = null;
 
             await foreach (var completionEvent in chatClient.StreamAsync(completionRequest, ct))
-            {
                 switch (completionEvent)
                 {
                     case ChatStreamEvent.TextDelta delta when !string.IsNullOrEmpty(delta.Text):
@@ -84,7 +80,6 @@ public sealed class AssistantChatService(
                         toolCalls = calls.Calls.ToList();
                         break;
                 }
-            }
 
             if (toolCalls is { Count: > 0 })
             {
@@ -122,9 +117,9 @@ public sealed class AssistantChatService(
             // Free text needs a real lookup and no number the server never supplied.
             var candidate = accumulatedText.ToString();
             reply = lookupHappened
-                && !AssistantReplyValidator.HasUnsupportedNumbers(candidate, allowedNumbers)
-                    ? AssistantReplyValidator.Sanitize(candidate, _settings.MaxReplyChars)
-                    : AssistantReplyValidator.FallbackReply;
+                    && !AssistantReplyValidator.HasUnsupportedNumbers(candidate, allowedNumbers)
+                ? AssistantReplyValidator.Sanitize(candidate, _settings.MaxReplyChars)
+                : AssistantReplyValidator.FallbackReply;
 
             break;
         }
@@ -136,14 +131,11 @@ public sealed class AssistantChatService(
     }
 
     /// <summary>
-    /// Malformed arguments become an empty object so decision tools fail closed.
+    ///     Malformed arguments become an empty object so decision tools fail closed.
     /// </summary>
     private static JsonElement ParseArguments(string? arguments)
     {
-        if (string.IsNullOrWhiteSpace(arguments))
-        {
-            return EmptyArguments();
-        }
+        if (string.IsNullOrWhiteSpace(arguments)) return EmptyArguments();
 
         try
         {
@@ -164,9 +156,7 @@ public sealed class AssistantChatService(
     private async Task<string> ExecuteToolAsync(ChatToolCall call, CancellationToken ct)
     {
         if (!_tools.TryGetValue(call.Name, out var tool))
-        {
             return Serialize(new { error = $"Công cụ '{call.Name}' không tồn tại." });
-        }
 
         JsonDocument document;
         try
@@ -196,13 +186,9 @@ public sealed class AssistantChatService(
         var messages = request.Messages;
 
         if (messages is null || messages.Count == 0)
-        {
             errors["Messages"] = ["Messages is required."];
-        }
         else if (messages.Count > _settings.MaxMessages)
-        {
             errors["Messages"] = [$"At most {_settings.MaxMessages} messages are allowed."];
-        }
 
         if (errors.Count == 0)
         {
@@ -225,26 +211,17 @@ public sealed class AssistantChatService(
 
                 var content = message.Content?.Trim();
                 if (string.IsNullOrEmpty(content))
-                {
                     errors[$"Messages[{index}].Content"] = ["Message content is required."];
-                }
                 else if (content.Length > _settings.MaxMessageLength)
-                {
                     errors[$"Messages[{index}].Content"] =
                         [$"Message content must be at most {_settings.MaxMessageLength} characters."];
-                }
             }
 
             if (messages![^1]?.Role?.Trim().ToLowerInvariant() != "user")
-            {
                 errors["Messages"] = ["The last message must be from the user."];
-            }
         }
 
-        if (errors.Count > 0)
-        {
-            throw new ValidationException(errors: errors);
-        }
+        if (errors.Count > 0) throw new ValidationException(errors: errors);
     }
 
     private List<ChatCompletionMessage> BuildConversation(AssistantChatRequest request)

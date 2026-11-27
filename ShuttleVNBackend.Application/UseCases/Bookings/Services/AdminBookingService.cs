@@ -15,7 +15,7 @@ public class AdminBookingService(
     {
         if (criteria.FromDate is { } from && criteria.ToDate is { } to && from > to)
             throw new ValidationException(errors: new Dictionary<string, string[]>
-            { ["FromDate"] = ["From date must not be after to date"] });
+                { ["FromDate"] = ["From date must not be after to date"] });
 
         var normalized = criteria with { Keyword = criteria.Keyword?.Trim() };
         var rows = await bookingRepository.SearchAsync(normalized, page, ct);

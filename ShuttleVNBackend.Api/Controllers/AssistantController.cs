@@ -15,10 +15,10 @@ namespace ShuttleVNBackend.Api.Controllers;
 [AllowAnonymous]
 public class AssistantController(AssistantChatService assistantChatService) : ControllerBase
 {
-    private static readonly JsonSerializerOptions StreamJson = new(JsonSerializerDefaults.Web);
-
     private const string AssistantUnavailableMessage =
         "Trợ lý tạm thời không phản hồi. Vui lòng thử lại sau.";
+
+    private static readonly JsonSerializerOptions StreamJson = new(JsonSerializerDefaults.Web);
 
     [HttpPost("chat")]
     [EnableRateLimiting(AssistantRateLimit.PolicyName)]
@@ -57,7 +57,7 @@ public class AssistantController(AssistantChatService assistantChatService) : Co
             Response.ContentType = "application/json";
             Response.StatusCode = ex.StatusCode;
 
-            IDictionary<string, string[]> errors = ex is ValidationException validation
+            var errors = ex is ValidationException validation
                 ? validation.Errors
                 : new Dictionary<string, string[]>();
 
@@ -73,8 +73,9 @@ public class AssistantController(AssistantChatService assistantChatService) : Co
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // Upstream stalled and hit the configured timeout mid-stream.
-            await WriteEventAsync("error", JsonSerializer.Serialize(new { code = "ASSISTANT_UNAVAILABLE", message = AssistantUnavailableMessage },
-                    StreamJson), ct);
+            await WriteEventAsync("error", JsonSerializer.Serialize(
+                new { code = "ASSISTANT_UNAVAILABLE", message = AssistantUnavailableMessage },
+                StreamJson), ct);
         }
 
         return new EmptyResult();

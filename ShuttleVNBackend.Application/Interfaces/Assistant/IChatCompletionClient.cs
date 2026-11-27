@@ -18,6 +18,7 @@ public sealed record ChatCompletionRequest(
 public abstract record ChatStreamEvent
 {
     public sealed record TextDelta(string Text) : ChatStreamEvent;
+
     public sealed record ToolCallsReady(IReadOnlyList<ChatToolCall> Calls) : ChatStreamEvent;
 }
 

@@ -24,10 +24,8 @@ public static class BookingQuote
         var canonical = new StringBuilder(FormattableString.Invariant(
             $"{courtId}|{date:yyyy-MM-dd}|{startTime:HH:mm:ss.fffffff}|{endTime:HH:mm:ss.fffffff}|{totalCost:G29}|{orderedSegments.Length}"));
         foreach (var segment in orderedSegments)
-        {
             canonical.Append(FormattableString.Invariant(
                 $"\n{segment.SegmentNo}|{segment.PriceStartTime:HH:mm:ss.fffffff}|{segment.SegmentStartTime:HH:mm:ss.fffffff}|{segment.SegmentEndTime:HH:mm:ss.fffffff}|{segment.PricePerHour:G29}"));
-        }
 
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString())));
         return new PricePreviewResponse(totalCost, orderedSegments, fingerprint);
@@ -48,8 +46,6 @@ public static class BookingQuote
 
         if (dto.TotalCost != currentQuote.TotalCost ||
             !string.Equals(dto.QuoteFingerprint, currentQuote.QuoteFingerprint, StringComparison.Ordinal))
-        {
             throw new PriceChangedException(currentQuote);
-        }
     }
 }

@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -29,7 +30,7 @@ public sealed class ResendEmailService(HttpClient httpClient, IOptions<EmailServ
             subject = message.Subject,
             html = message.IsHtml ? message.Body : null,
             text = message.IsHtml ? null : message.Body
-        }, options: new System.Text.Json.JsonSerializerOptions
+        }, options: new JsonSerializerOptions
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         });

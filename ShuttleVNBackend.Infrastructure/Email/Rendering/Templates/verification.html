@@ -1,21 +1,28 @@
 <!-- Content fragment for base.html content slot. See README.md for placeholder rules. -->
-<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width:100%;">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;" width="100%">
     <tr>
         <td align="center" style="padding:0 0 16px;">
-            <h1 class="email-heading email-primary" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:700;line-height:38px;color:#26352f;">Xác minh email của bạn</h1>
+            <h1 class="email-heading email-primary"
+                style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:700;line-height:38px;color:#26352f;">
+                Xác minh email của bạn</h1>
         </td>
     </tr>
     <tr>
         <td align="center" style="padding:0 0 28px;">
-            <p class="email-secondary" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:26px;color:#626b66;">Nhập mã bên dưới trên ShuttleVN để xác minh địa chỉ email của bạn.</p>
+            <p class="email-secondary"
+               style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:26px;color:#626b66;">
+                Nhập mã bên dưới trên ShuttleVN để xác minh địa chỉ email của bạn.</p>
         </td>
     </tr>
     <tr>
         <td align="center" style="padding:0 0 16px;">
-            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width:100%;">
+            <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;" width="100%">
                 <tr>
-                    <td class="email-code-surface" align="center" bgcolor="#eaf6f1" style="padding:24px 12px;background-color:#eaf6f1;border:1px solid #d0e7dd;border-radius:6px;">
-                        <p class="verification-code" dir="ltr" style="margin:0;font-family:Consolas,'Courier New',monospace;font-size:36px;font-weight:700;line-height:48px;letter-spacing:6px;white-space:nowrap;color:#245b4b;">{{VerificationCode}}</p>
+                    <td align="center" bgcolor="#eaf6f1" class="email-code-surface"
+                        style="padding:24px 12px;background-color:#eaf6f1;border:1px solid #d0e7dd;border-radius:6px;">
+                        <p class="verification-code" dir="ltr"
+                           style="margin:0;font-family:Consolas,'Courier New',monospace;font-size:36px;font-weight:700;line-height:48px;letter-spacing:6px;white-space:nowrap;color:#245b4b;">
+                            {{VerificationCode}}</p>
                     </td>
                 </tr>
             </table>
@@ -23,13 +30,20 @@
     </tr>
     <tr>
         <td align="center" style="padding:0 0 28px;">
-            <p class="email-secondary" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:24px;color:#626b66;">Mã có hiệu lực trong <strong class="email-primary" style="font-weight:700;color:#26352f;">{{ExpirationMinutes}} phút</strong> kể từ khi được gửi.</p>
+            <p class="email-secondary"
+               style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:24px;color:#626b66;">Mã
+                có hiệu lực trong <strong class="email-primary" style="font-weight:700;color:#26352f;">{{ExpirationMinutes}}
+                    phút</strong> kể từ khi được gửi.</p>
         </td>
     </tr>
     <tr>
         <td align="center" style="padding:0;">
-            <p class="email-primary" style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:24px;color:#26352f;">Không chia sẻ mã này với bất kỳ ai.</p>
-            <p class="email-secondary" style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:24px;color:#626b66;">Nếu bạn không yêu cầu xác minh email, hãy bỏ qua email này.</p>
+            <p class="email-primary"
+               style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:24px;color:#26352f;">
+                Không chia sẻ mã này với bất kỳ ai.</p>
+            <p class="email-secondary"
+               style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:24px;color:#626b66;">
+                Nếu bạn không yêu cầu xác minh email, hãy bỏ qua email này.</p>
         </td>
     </tr>
 </table>

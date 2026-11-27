@@ -4,6 +4,9 @@ namespace ShuttleVNBackend.Core.Entities.Courts;
 
 public class BadmintonCourt
 {
+    private ICollection<CourtSchedule>? _courtSchedules;
+
+    private ICollection<PricingRule>? _pricingRules;
     public int CourtId { get; set; }
     public string? Name { get; set; }
     public string Description { get; set; } = string.Empty;
@@ -12,14 +15,13 @@ public class BadmintonCourt
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
-    private ICollection<CourtSchedule>? _courtSchedules;
     public virtual ICollection<CourtSchedule> CourtSchedules
     {
-        get => _courtSchedules ?? throw new InvalidOperationException("Uninitialized property: " + nameof(CourtSchedules));
+        get => _courtSchedules ??
+               throw new InvalidOperationException("Uninitialized property: " + nameof(CourtSchedules));
         set => _courtSchedules = value;
     }
 
-    private ICollection<PricingRule>? _pricingRules;
     public virtual ICollection<PricingRule> PricingRules
     {
         get => _pricingRules ?? throw new InvalidOperationException("Uninitialized property: " + nameof(PricingRules));

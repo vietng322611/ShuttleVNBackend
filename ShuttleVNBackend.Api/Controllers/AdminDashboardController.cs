@@ -18,4 +18,3 @@ public class AdminDashboardController(DashboardService dashboardService) : Contr
         return Ok(ApiResponseFactory.Success(await dashboardService.GetTodayAsync(ct)));
     }
 }
-

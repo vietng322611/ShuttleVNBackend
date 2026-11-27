@@ -6,6 +6,7 @@ namespace ShuttleVNBackend.Core.Entities.Bookings;
 
 public class BookingStatusHistory
 {
+    private Booking? _booking;
     public Guid Id { get; set; }
     public Guid BookingId { get; set; }
     public BookingStatus? OldStatus { get; set; }
@@ -16,7 +17,6 @@ public class BookingStatusHistory
     public DateTime ChangedAt { get; set; }
     public string Reason { get; set; } = string.Empty;
 
-    private Booking? _booking;
     public virtual Booking Booking
     {
         get => _booking ?? throw new InvalidOperationException("Uninitialized property: " + nameof(Booking));

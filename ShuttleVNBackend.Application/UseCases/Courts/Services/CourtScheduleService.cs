@@ -41,7 +41,8 @@ public class CourtScheduleService(
                 throw new NotFoundException($"Court with id {courtId} not found.");
 
             var schedule = schedules.FirstOrDefault(s => s.DayOfWeek == dayOfWeek)
-                           ?? throw new NotFoundException($"Schedule for day {dayOfWeek} of court {courtId} not found.");
+                           ?? throw new NotFoundException(
+                               $"Schedule for day {dayOfWeek} of court {courtId} not found.");
 
             var now = clock.GetUtcNow().UtcDateTime;
             var changed = schedule.IsAvailable != request.IsAvailable

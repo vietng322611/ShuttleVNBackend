@@ -16,7 +16,7 @@
 
     <ItemGroup>
         <Folder Include="UseCases\Authentication\Docs\"/>
-        <Folder Include="UseCases\Users\Docs\" />
+        <Folder Include="UseCases\Users\Docs\"/>
     </ItemGroup>
 
 </Project>

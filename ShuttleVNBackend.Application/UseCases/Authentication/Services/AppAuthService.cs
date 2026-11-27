@@ -97,12 +97,10 @@ public class AppAuthService(
     public async Task IssueCodeAsync(string email, CodeType type, CancellationToken ct = default)
     {
         if (!MailAddress.TryCreate(email, out var address) || address.Address != email)
-        {
             throw new ValidationException(errors: new Dictionary<string, string[]>
             {
                 ["Email"] = ["A valid email address is required."]
             });
-        }
 
         var purpose = type switch
         {
@@ -119,9 +117,7 @@ public class AppAuthService(
         {
             var existingCode = await verificationCodeRepository.GetActiveAsync(email, type, token);
             if (existingCode is not null && !existingCode.IsUsed)
-            {
                 throw new ConflictException("Already having an active code");
-            }
 
             await verificationCodeRepository.DeleteExistingAsync(email, type);
             var plainCode = GenerateCode();
@@ -137,7 +133,8 @@ public class AppAuthService(
             await unitOfWork.AddAsync(code, token);
             await unitOfWork.SaveChangesAsync(token);
             await emailService.SendAsync(new EmailMessage(email, $"ShuttleVN {purpose} code",
-                $"Your {purpose} code is: {plainCode}\n\nThis code expires in 5 minutes. Do not share it with anyone."), token);
+                    $"Your {purpose} code is: {plainCode}\n\nThis code expires in 5 minutes. Do not share it with anyone."),
+                token);
             return true;
         }, ct);
     }

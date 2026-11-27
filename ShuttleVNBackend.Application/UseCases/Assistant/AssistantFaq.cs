@@ -1,8 +1,8 @@
 namespace ShuttleVNBackend.Application.UseCases.Assistant;
 
 /// <summary>
-/// Fixed answers for questions the assistant may answer. The model picks a key; the words
-/// come from here, so injected instructions cannot reshape a policy answer.
+///     Fixed answers for questions the assistant may answer. The model picks a key; the words
+///     come from here, so injected instructions cannot reshape a policy answer.
 /// </summary>
 public static class AssistantFaq
 {

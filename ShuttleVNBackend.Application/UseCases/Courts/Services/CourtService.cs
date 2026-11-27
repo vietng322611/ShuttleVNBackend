@@ -73,7 +73,7 @@ public class CourtService(
             await unitOfWork.LockCourtAsync(courtId, token);
             if (!Enum.IsDefined(dto.Status))
                 throw new ValidationException(errors: new Dictionary<string, string[]>
-                { ["Status"] = ["Invalid court status"] });
+                    { ["Status"] = ["Invalid court status"] });
 
             var court = await courtRepository.GetByIdAsync(courtId, token)
                         ?? throw new NotFoundException("Court not found");
@@ -121,7 +121,7 @@ public class CourtService(
 
         var status = !isOpen ? "CLOSED" : booking is not null ? "BOOKED" : "AVAILABLE";
         var isMine = booking is not null && viewerCustomerId is not null
-                     && booking.CustomerId == viewerCustomerId;
+                                         && booking.CustomerId == viewerCustomerId;
         return new CourtSlotDto(
             court.CourtId, date, start.ToString("HH:mm"), end.ToString("HH:mm"), status,
             status == "BOOKED" ? booking!.BookingId : null,
@@ -141,10 +141,7 @@ public class CourtService(
             var ruleEnd = index + 1 < orderedRules.Count ? orderedRules[index + 1].StartTime : TimeOnly.MaxValue;
             var from = start > rule.StartTime ? start : rule.StartTime;
             var to = end < ruleEnd ? end : ruleEnd;
-            if (from >= to)
-            {
-                continue;
-            }
+            if (from >= to) continue;
 
             var minutes = (int)(to - from).TotalMinutes;
             total += rule.PricePerHour * minutes;

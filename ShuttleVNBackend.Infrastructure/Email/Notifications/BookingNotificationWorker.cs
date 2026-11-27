@@ -31,7 +31,8 @@ public sealed class BookingNotificationWorker(
             catch (Exception exception)
             {
                 // Messages and inner exceptions can contain database details or provider credentials.
-                logger.LogError("Booking notification batch failed ({ExceptionType}); pending messages will be retried. {StackTrace}",
+                logger.LogError(
+                    "Booking notification batch failed ({ExceptionType}); pending messages will be retried. {StackTrace}",
                     exception.GetType().FullName, exception.StackTrace);
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
@@ -46,10 +47,7 @@ public sealed class BookingNotificationWorker(
             var now = clock.GetUtcNow().UtcDateTime;
             var lease = now.AddMinutes(2);
             var notification = await ClaimNotificationAsync(dbContext, now, lease, ct);
-            if (notification is null)
-            {
-                return;
-            }
+            if (notification is null) return;
 
             await DeliverNotificationAsync(dbContext, scope.ServiceProvider, notification, lease, ct);
         }
@@ -62,18 +60,15 @@ public sealed class BookingNotificationWorker(
         {
             var notifications = await dbContext.Notifications
                 .FromSqlInterpolated($"""
-                    SELECT * FROM "Notifications"
-                    WHERE "EventType" = 'BookingRescheduled' AND "Status" IN ('PENDING', 'SENDING')
-                      AND ("NextAttemptAt" IS NULL OR "NextAttemptAt" <= {now})
-                      AND ("LockedUntil" IS NULL OR "LockedUntil" <= {now})
-                    ORDER BY "CreatedAt", "NotificationId" FOR UPDATE SKIP LOCKED LIMIT 1
-                    """)
+                                      SELECT * FROM "Notifications"
+                                      WHERE "EventType" = 'BookingRescheduled' AND "Status" IN ('PENDING', 'SENDING')
+                                        AND ("NextAttemptAt" IS NULL OR "NextAttemptAt" <= {now})
+                                        AND ("LockedUntil" IS NULL OR "LockedUntil" <= {now})
+                                      ORDER BY "CreatedAt", "NotificationId" FOR UPDATE SKIP LOCKED LIMIT 1
+                                      """)
                 .ToListAsync(token);
             var notification = notifications.FirstOrDefault();
-            if (notification is null)
-            {
-                return null;
-            }
+            if (notification is null) return null;
 
             notification.Status = "SENDING";
             notification.LockedUntil = lease;
@@ -95,9 +90,9 @@ public sealed class BookingNotificationWorker(
             using var payload = JsonDocument.Parse(notification.Payload);
             var root = payload.RootElement;
             var body = $"Booking {root.GetProperty("BookingCode").GetString()} was rescheduled.\n" +
-                $"Court: {root.GetProperty("CourtId")}\nDate: {root.GetProperty("Date")}\n" +
-                $"Time (Vietnam): {root.GetProperty("StartTime")}–{root.GetProperty("EndTime")}\n" +
-                $"Total: {root.GetProperty("TotalCost")} VND.";
+                       $"Court: {root.GetProperty("CourtId")}\nDate: {root.GetProperty("Date")}\n" +
+                       $"Time (Vietnam): {root.GetProperty("StartTime")}–{root.GetProperty("EndTime")}\n" +
+                       $"Total: {root.GetProperty("TotalCost")} VND.";
             var emailService = serviceProvider.GetRequiredService<IEmailService>();
             await emailService.SendAsync(
                 new EmailMessage(notification.RecipientEmail, "ShuttleVN booking rescheduled", body),
@@ -119,11 +114,11 @@ public sealed class BookingNotificationWorker(
         // A lease permits crash recovery. Delivery is at-least-once if provider accepts mail before a crash.
         await dbContext.Notifications
             .Where(notificationRow => notificationRow.NotificationId == notification.NotificationId
-                && notificationRow.LockedUntil == lease)
+                                      && notificationRow.LockedUntil == lease)
             .ExecuteUpdateAsync(update => update
                 .SetProperty(notificationRow => notificationRow.Status, error == null ? "SENT" : "PENDING")
-                .SetProperty(notificationRow => notificationRow.SentAt, error == null ? (DateTime?)sentAt : null)
-                .SetProperty(notificationRow => notificationRow.NextAttemptAt, error == null ? null : (DateTime?)nextAttempt)
+                .SetProperty(notificationRow => notificationRow.SentAt, error == null ? sentAt : null)
+                .SetProperty(notificationRow => notificationRow.NextAttemptAt, error == null ? null : nextAttempt)
                 .SetProperty(notificationRow => notificationRow.LockedUntil, (DateTime?)null)
                 .SetProperty(notificationRow => notificationRow.LastError, error), ct);
     }
