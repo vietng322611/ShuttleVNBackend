@@ -4,15 +4,18 @@ using ShuttleVNBackend.Application.Exceptions;
 using ShuttleVNBackend.Application.Interfaces.Repositories;
 using ShuttleVNBackend.Application.Interfaces.Repositories.Bookings;
 using ShuttleVNBackend.Application.Interfaces.Repositories.Courts;
+using ShuttleVNBackend.Application.Interfaces.Users;
 using ShuttleVNBackend.Application.UseCases.Courts.Helpers;
 using ShuttleVNBackend.Core.Entities.Courts;
 using ShuttleVNBackend.Core.Entities.Courts.Enums;
+using ShuttleVNBackend.Core.Entities.System.Enums;
 
 namespace ShuttleVNBackend.Application.UseCases.Courts.Services;
 
 public class CourtService(
     ICourtRepository courtRepository,
     IBookingRepository bookingRepository,
+    ICurrentUser currentUser,
     TimeProvider clock,
     IUnitOfWork unitOfWork)
 {
@@ -49,11 +52,12 @@ public class CourtService(
 
         var sources = await courtRepository.GetAllForGridAsync(day, isoDay, ct);
         var inUse = day == today ? await GetInUseIdsAsync(ct) : [];
+        var viewerCustomerId = currentUser.ActorType == ActorType.Customer ? currentUser.ActorId : null;
 
         var items = sources.Select(s => new CourtGridItemDto(
             ToDto(s.Court, inUse),
             Enumerable.Range(0, SlotCount)
-                .Select(i => BuildSlot(s, day, GridStart.AddMinutes(i * SlotMinutes)))
+                .Select(i => BuildSlot(s, day, GridStart.AddMinutes(i * SlotMinutes), viewerCustomerId))
                 .ToList())).ToList();
 
         return new CourtGridResponseDto(day, items);
@@ -104,7 +108,8 @@ public class CourtService(
         return CourtDto.FromEntity(c, c.Status == CourtStatus.Active && inUse.Contains(c.CourtId));
     }
 
-    private static CourtSlotDto BuildSlot(CourtGridSource s, DateOnly date, TimeOnly start)
+    private static CourtSlotDto BuildSlot(
+        CourtGridSource s, DateOnly date, TimeOnly start, Guid? viewerCustomerId)
     {
         var end = start.AddMinutes(SlotMinutes);
         var court = s.Court;
@@ -115,10 +120,13 @@ public class CourtService(
         var booking = s.Bookings.FirstOrDefault(b => b.StartTime < end && b.EndTime > start);
 
         var status = !isOpen ? "CLOSED" : booking is not null ? "BOOKED" : "AVAILABLE";
+        var isMine = booking is not null && viewerCustomerId is not null
+                     && booking.CustomerId == viewerCustomerId;
         return new CourtSlotDto(
             court.CourtId, date, start.ToString("HH:mm"), end.ToString("HH:mm"), status,
             status == "BOOKED" ? booking!.BookingId : null,
-            ResolvePricePerHour(court.PricingRules, start, end));
+            ResolvePricePerHour(court.PricingRules, start, end),
+            isMine);
     }
 
     private static decimal ResolvePricePerHour(IEnumerable<PricingRule> rules, TimeOnly start, TimeOnly end)

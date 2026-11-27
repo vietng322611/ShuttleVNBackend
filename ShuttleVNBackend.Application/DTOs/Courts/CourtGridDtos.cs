@@ -7,7 +7,8 @@ public record CourtSlotDto(
     string EndTime,
     string DisplayStatus,
     Guid? BookingId,
-    decimal PricePerHour);
+    decimal PricePerHour,
+    bool IsMine);
 
 public record CourtGridItemDto(CourtDto Court, IReadOnlyList<CourtSlotDto> Slots);
 
